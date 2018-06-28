@@ -251,7 +251,7 @@ class Z
      * @param bool $join
      * @return mixed
      */
-    public static function arrayGet($arr, $keys, $default = null, $explode = true,$join = false)
+    public static function arrayGet($arr, $keys, $default = null, $explode = true, $join = false)
     {
         if (is_array($keys)) {
             $key = array_shift($keys);
@@ -264,12 +264,12 @@ class Z
         while (count($_keys) != 0) {
             $key = array_shift($_keys);
             if (!isset($a[$key])) {
-                return $keys ? self::arrayGet($arr, $keys, $default, $explode) : $default;
+                return $keys ? self::arrayGet($arr, $keys, $default, $explode, $join) : $default;
             }
             $a = $a[$key];
         }
-        if($join&&is_array($a)){
-            $a = join(is_bool($join)?',':$join,$a);
+        if ($join && is_array($a)) {
+            $a = join(is_bool($join) ? ',' : $join, $a);
         }
         return $a;
     }
@@ -978,13 +978,13 @@ class Z
                             }
                             //$value = null;
                             //}
-                            if(isset($result[$pname])){
-                                if(is_array($result[$pname])){
+                            if (isset($result[$pname])) {
+                                if (is_array($result[$pname])) {
                                     $result[$pname][] = $value;
-                                }else{
-                                    $result[$pname] = [$result[$pname],$value];
+                                } else {
+                                    $result[$pname] = [$result[$pname], $value];
                                 }
-                            }else{
+                            } else {
                                 $result[$pname] = $value;
                             }
                         }
@@ -6078,7 +6078,7 @@ class Zls_Config
     }
     public function composer()
     {
-        if (!isset($GLOBALS['__composer_autoload_files'])&&file_exists($composer = ZLS_APP_PATH . '../vendor/autoload.php')) {
+        if (!isset($GLOBALS['__composer_autoload_files']) && file_exists($composer = ZLS_APP_PATH . '../vendor/autoload.php')) {
             Z::includeOnce($composer);
         }
         return $this;
