@@ -1,0 +1,17 @@
+{
+  "name": "zls/framework",
+  "description": "",
+  "type": "library",
+  "license": "MIT",
+  "minimum-stability": "dev",
+  "authors": [
+    {
+      "name": "影浅",
+      "email": "seekwe@gmail.com"
+    }
+  ],
+  "autoload": {
+    "files": ["Zls.php"]
+  },
+  "require": {}
+}
