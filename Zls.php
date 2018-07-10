@@ -7,7 +7,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @link          https://docs.73zls.com/zls-php/#/
  * @since         v2.1.23
- * @updatetime    2018-6-28 12:44:07
+ * @updatetime    2018-7-10 12:37:31
  */
 define("IN_ZLS", '2.1.23');
 define('ZLS_FRAMEWORK', __FILE__);
@@ -1791,7 +1791,7 @@ class Z
         self::finish($msg);
     }
     /**
-     * @return null|object
+     * @return \Zls_View
      */
     public static function view()
     {
@@ -2357,16 +2357,17 @@ class Zls_Command
         }
         $defaultCmd = 'Main';
         $argsCommandName = $first ?: $defaultCmd;
-        $name = ucfirst($argsCommandName);
+        $name = $argsCommandName;
         $command = explode(':', $name);
         $name = array_shift($command);
         $executes = $command;
         $commandLists = $config->getCommands();
         if ($name === $defaultCmd) {
             $commandName = $commandMain;
-        } elseif (Z::arrayKeyExists($argsCommandName, $commandLists)) {
-            $commandName = $commandLists[$argsCommandName];
+        } elseif (Z::arrayKeyExists($name, $commandLists)) {
+            $commandName = $commandLists[$name];
         } else {
+            $name= ucfirst($name);
             $commandName = 'Command_' . $name;
         }
         try {
