@@ -7,7 +7,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @link          https://docs.73zls.com/zls-php/#/
  * @since         v2.1.23
- * @updatetime    2018-7-10 12:37:31
+ * @updatetime    2018-7-12 15:17:34
  */
 define("IN_ZLS", '2.1.23');
 define('ZLS_FRAMEWORK', __FILE__);
@@ -2724,9 +2724,9 @@ class Zls_Database_ActiveRecord extends Zls_Database
         if ($this->_isSqlsrv() && !!$limit) {
             $limitArg = explode(',', $limit);
             if (count($limitArg) > 1) {
-                $offset = $limitArg[1];
-                if ($limit = $limitArg[0]) {
-                    $limit = (int)$offset * ((int)$limit - 1);
+                $offset = (int)$limitArg[1];
+                if ($limit = (int)$limitArg[0]) {
+                    $limit = $offset * ($limit - 1);
                 }
                 if (!!$orderBy) {
                     $orderBy = $orderBy . ' OFFSET ' . $limit . ' ROWS FETCH NEXT ' . $offset . '  ROWS ONLY ';
