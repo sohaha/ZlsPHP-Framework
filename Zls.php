@@ -6215,7 +6215,7 @@ class Zls_Logger_Dispatcher
             $error = $exception->render();
         } else {
             $path = [
-                $config->getApplicationDir() . $config->getViewsDirName() . '/error/' . $exception->getErrorCode() . '.php',
+                $config->getApplicationDir() . $config->getViewsDirName() . '/Error/' . $exception->getErrorCode() . '.php',
                 $config->getPrimaryApplicationDir() . $config->getViewsDirName() . $exception->getErrorCode() . '.php',
             ];
             if (file_exists($file = $path[0]) || file_exists($file = $path[1])) {
