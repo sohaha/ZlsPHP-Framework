@@ -4891,14 +4891,11 @@ abstract class Zls_Exception extends \Exception
         } elseif ($isCli) {
             $string = $this->renderCli();
         }
-        if (!$return) {
-            z::finish($string);
-        }
         return !$return ? z::finish($string) : $string;
     }
     public function renderHtml()
     {
-        $run = z::debug(false);
+        $run = z::debug(false,false,true,false);
         return '<html><meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"><body style="line-height:30px;padding:0;margin:0;background:#0C8611;color:whitesmoke;font-family:\'Courier New\',monospace;font-size:18px;">'
             . '<div style="padding:10px;background:#104411;color:#4CAF50;font-size:25px;font-weight:bold;">' . $this->exceptionName . ' - [ ' . $this->getErrorType() . ' ] </div>'
             . '<div style="padding:10px;color:yellow;">'
@@ -4995,7 +4992,7 @@ abstract class Zls_Exception extends \Exception
      */
     public function renderCli()
     {
-        $run = z::debug(false);
+        $run = z::debug(false,false,true,false);
         return "$this->exceptionName [ " . $this->getErrorType() . ' ]' . PHP_EOL
             . 'Environment: ' . $this->getEnvironment() . PHP_EOL
             . 'Line: ' . $this->getErrorLine() . ". " . $this->getErrorFile() . PHP_EOL
