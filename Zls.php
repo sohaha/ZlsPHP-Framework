@@ -396,16 +396,15 @@ class Z
     {
         static $_run = [];
         static $_mem = [];
+        $toStr = function ($res) use ($name,$resString){
+            return  $resString?vsprintf($name . '[runtime:%s,memory:%s', [$res['runtime'], $res['memory'] . ']']):$res;
+        };
         if (!!$output && $name) {
             $runTime = self::microtime() - $_run[$name];
             $res = ['runtime' => $runTime / 1000 . ($suffix ? 's' : ''), 'memory' => self::convertRam(memory_get_usage() - $_mem[$name], $suffix)];
             if ($unset) {
                 unset($_run[$name], $_mem[$name]);
             }
-            if ($resString) {
-                $res = vsprintf($name . '[runtime:%s,memory:%s', [$res['runtime'], $res['memory'] . ']']);
-            }
-            return $res;
         } elseif ($name) {
             $_run[$name] = self::microtime();
             $_mem[$name] = memory_get_usage();
@@ -416,8 +415,9 @@ class Z
             if (substr_count($runTime, "E")) {
                 $runTime = floatval(substr($runTime, 5));
             }
-            return ['runtime' => ($runTime / 1000) . ($suffix ? 's' : ''), 'memory' => (\Zls::$zlsMemory ? self::convertRam(memory_get_usage() - \Zls::$zlsMemory, $suffix) : 'null')];
+            $res =  ['runtime' => ($runTime / 1000) . ($suffix ? 's' : ''), 'memory' => (\Zls::$zlsMemory ? self::convertRam(memory_get_usage() - \Zls::$zlsMemory, $suffix) : 'null')];
         }
+        return $toStr($res);
     }
     /**
      * 计算内存消耗
