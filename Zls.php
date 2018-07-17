@@ -7,7 +7,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @link          https://docs.73zls.com/zls-php/#/
  * @since         v2.1.23
- * @updatetime    2018-7-12 15:17:34
+ * @updatetime    2018-7-17 16:37:18
  */
 define("IN_ZLS", '2.1.23');
 define('ZLS_FRAMEWORK', __FILE__);
@@ -4045,7 +4045,7 @@ abstract class Zls_Database
                                     $connections[$key]->setAttribute($k, $v);
                                 }
                             }
-                        } catch (\PDOException $e) {
+                        } catch (\Exception $e) {
                             $err = Z::toUtf8($e->getMessage());
                             throw new \Zls_Exception_Database($err);
                         }
