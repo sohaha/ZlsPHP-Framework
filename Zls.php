@@ -397,8 +397,8 @@ class Z
     {
         static $_run = [];
         static $_mem = [];
-        $toStr = function ($res) use ($name,$resString){
-            return  $resString?vsprintf($name . '[runtime:%s,memory:%s', [$res['runtime'], $res['memory'] . ']']):$res;
+        $toStr = function ($res) use ($name, $resString) {
+            return $resString ? vsprintf($name . '[runtime:%s,memory:%s', [$res['runtime'], $res['memory'] . ']']) : $res;
         };
         if (!!$output && $name) {
             $runTime = self::microtime() - $_run[$name];
@@ -416,7 +416,7 @@ class Z
             if (substr_count($runTime, "E")) {
                 $runTime = floatval(substr($runTime, 5));
             }
-            $res =  ['runtime' => ($runTime / 1000) . ($suffix ? 's' : ''), 'memory' => (\Zls::$zlsMemory ? self::convertRam(memory_get_usage() - \Zls::$zlsMemory, $suffix) : 'null')];
+            $res = ['runtime' => ($runTime / 1000) . ($suffix ? 's' : ''), 'memory' => (\Zls::$zlsMemory ? self::convertRam(memory_get_usage() - \Zls::$zlsMemory, $suffix) : 'null')];
         }
         return $toStr($res);
     }
@@ -2103,7 +2103,9 @@ class Zls
     private static function runCli()
     {
         self::initDebug();
-        if(!ZLS_RUN_MODE_CLI) return false;
+        if (!ZLS_RUN_MODE_CLI) {
+            return false;
+        }
         $executes = [];
         $args = Z::getOpt();
         $hmvcModuleName = Z::arrayGet($args, 'hmvc');
@@ -2369,7 +2371,7 @@ class Zls_Command
         } elseif (Z::arrayKeyExists($name, $commandLists)) {
             $commandName = $commandLists[$name];
         } else {
-            $name= ucfirst($name);
+            $name = ucfirst($name);
             $commandName = 'Command_' . $name;
         }
         try {
@@ -3687,9 +3689,9 @@ abstract class Zls_Dao
             $this->getDb()->where($where);
         }
         $total = $this->getDb()->select('count(*) as total')
-            ->from($this->getTable())
-            ->execute()
-            ->value('total');
+                      ->from($this->getTable())
+                      ->execute()
+                      ->value('total');
         if (is_array($where)) {
             $this->getDb()->where($where);
         }
@@ -3703,9 +3705,9 @@ abstract class Zls_Dao
             $pagesize = 1;
         }
         $data['items'] = $this->getDb()
-            ->select($fields)
-            ->limit(($page - 1) * $pagesize, $pagesize)
-            ->from($this->getTable())->execute()->rows();
+                              ->select($fields)
+                              ->limit(($page - 1) * $pagesize, $pagesize)
+                              ->from($this->getTable())->execute()->rows();
         $data['page'] = Z::page($total, $page, $pagesize, $url, $pageBarACount);
         return $data;
     }
@@ -3732,20 +3734,20 @@ abstract class Zls_Dao
         $data = [];
         $table = $this->getDb()->getTablePrefix() . $this->getTable();
         $rs = $this->getDb()
-            ->execute(
-                'select count(*) as total from ' . $table . (strpos(trim($cond), 'order') === 0 ? ' ' : ' where ') . $cond,
-                $values
-            );
+                   ->execute(
+                       'select count(*) as total from ' . $table . (strpos(trim($cond), 'order') === 0 ? ' ' : ' where ') . $cond,
+                       $values
+                   );
         $total = $rs->total() > 1 ? $rs->total() : $rs->value('total');
         $data['items'] = $this->getDb()
-            ->execute(
-                'select ' . $fields . ' from ' . $table . (strpos(
-                    trim($cond),
-                    'order'
-                ) === 0 ? ' ' : ' where ') . $cond . ' limit ' . (($page - 1) * $pagesize) . ',' . $pagesize,
-                $values
-            )
-            ->rows();
+                              ->execute(
+                                  'select ' . $fields . ' from ' . $table . (strpos(
+                                      trim($cond),
+                                      'order'
+                                  ) === 0 ? ' ' : ' where ') . $cond . ' limit ' . (($page - 1) * $pagesize) . ',' . $pagesize,
+                                  $values
+                              )
+                              ->rows();
         $data['page'] = Z::page($total, $page, $pagesize, $url, $pageBarACount);
         return $data;
     }
@@ -3992,7 +3994,6 @@ abstract class Zls_Database
     }
     /**
      * @return bool
-     * @throws Zls_Exception_Database
      */
     private function _init()
     {
@@ -4176,9 +4177,8 @@ abstract class Zls_Database
     }
     /**
      * @return Zls_PDO
-     * @throws Zls_Exception_Database
      */
-    public function pod()
+    public function pdoInstance()
     {
         if (!$this->_masterPdo) {
             $this->_init();
@@ -4229,6 +4229,7 @@ abstract class Zls_Database
      * 执行一个sql语句，写入型的返回bool或者影响的行数（insert,delete,replace,update），搜索型的返回结果集
      * @param string $sql    sql语句
      * @param array  $values 参数
+     * @throws Zls_Exception_Database
      */
     public function execute($sql = '', array $values = [])
     {
@@ -4897,7 +4898,7 @@ abstract class Zls_Exception extends \Exception
     }
     public function renderHtml()
     {
-        $run = z::debug(false,false,true,false);
+        $run = z::debug(false, false, true, false);
         return '<html><meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"><body style="line-height:30px;padding:0;margin:0;background:#0C8611;color:whitesmoke;font-family:\'Courier New\',monospace;font-size:18px;">'
             . '<div style="padding:10px;background:#104411;color:#4CAF50;font-size:25px;font-weight:bold;">' . $this->exceptionName . ' - [ ' . $this->getErrorType() . ' ] </div>'
             . '<div style="padding:10px;color:yellow;">'
@@ -4994,7 +4995,7 @@ abstract class Zls_Exception extends \Exception
      */
     public function renderCli()
     {
-        $run = z::debug(false,false,true,false);
+        $run = z::debug(false, false, true, false);
         return "$this->exceptionName [ " . $this->getErrorType() . ' ]' . PHP_EOL
             . 'Environment: ' . $this->getEnvironment() . PHP_EOL
             . 'Line: ' . $this->getErrorLine() . ". " . $this->getErrorFile() . PHP_EOL
