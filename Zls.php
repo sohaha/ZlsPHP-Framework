@@ -7,12 +7,13 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @link          https://docs.73zls.com/zls-php/#/
  * @since         v2.1.23
- * @updatetime    2018-7-17 16:37:18
+ * @updatetime    2018-7-19 14:30:53
  */
 define("IN_ZLS", '2.1.23');
-define('ZLS_FRAMEWORK', __FILE__);
+define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PATH') || define('ZLS_PATH', __DIR__ . '/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
+defined('ZLS_RUN_MODE_CLI') || define('ZLS_RUN_MODE_CLI', true);
 defined('ZLS_APP_PATH') || define('ZLS_APP_PATH', Z::realPath(ZLS_PATH . 'application', true));
 defined('ZLS_INDEX_NAME') || define('ZLS_INDEX_NAME', pathinfo(__FILE__, PATHINFO_BASENAME));
 defined('ZLS_PACKAGES_PATH') || define('ZLS_PACKAGES_PATH', ZLS_APP_PATH . 'packages/');
@@ -2102,6 +2103,7 @@ class Zls
     private static function runCli()
     {
         self::initDebug();
+        if(!ZLS_RUN_MODE_CLI) return false;
         $executes = [];
         $args = Z::getOpt();
         $hmvcModuleName = Z::arrayGet($args, 'hmvc');
@@ -4024,7 +4026,7 @@ abstract class Zls_Database
                                     $connections[$key] = new \Zls_PDO($dsn, $config['username'], $config['password'], $options);
                                     $connections[$key]->exec('SET NAMES ' . $this->getCharset());
                                 } elseif ($this->_isSqlsrv()) {
-                                    $dsn = 'sqlsrv:Server=' . $config['hostname'] . ',' . $config['port'] . ';Database=' . $this->getDatabase() . ';';
+                                    $dsn = 'sqlsrv:Server=' . $config['hostname'] . ',' . $config['port'] . ';Database=' . $this->getDatabase() . ';MultipleActiveResultSets=false';
                                     unset($options[PDO::ATTR_PERSISTENT], $options[PDO::ATTR_EMULATE_PREPARES]);
                                     $options = $options + [PDO::SQLSRV_ATTR_QUERY_TIMEOUT => $this->getTimeout(), PDO::SQLSRV_ATTR_FETCHES_NUMERIC_TYPE => true];
                                     $connections[$key] = new \Zls_PDO($dsn, $config['username'], $config['password'], $options);
