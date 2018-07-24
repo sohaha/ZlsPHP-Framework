@@ -7,7 +7,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @link          https://docs.73zls.com/zls-php/#/
  * @since         v2.1.23
- * @updatetime    2018-7-19 14:30:53
+ * @updatetime    2018-7-24 14:43:45
  */
 define("IN_ZLS", '2.1.23');
 define('ZLS_CORE_PATH', __FILE__);
@@ -3369,6 +3369,7 @@ class Zls_Database_Resultset
 }
 abstract class Zls_Bean
 {
+    protected static $noTransform = false;
     final public function toArray($fields = [])
     {
         $args = get_object_vars($this);
@@ -3384,7 +3385,8 @@ abstract class Zls_Bean
     }
     private static function _get($method)
     {
-        return lcfirst(Z::strCamel2Snake(str_replace('get', '', $method)));
+        $method = str_replace('get', '', $method);
+        return static::$noTransform ? $method:lcfirst(Z::strCamel2Snake(str_replace('get', '', $method))) ;
     }
     public function __call($method, $args)
     {
@@ -3400,7 +3402,8 @@ abstract class Zls_Bean
     }
     private static function _set($method)
     {
-        return lcfirst(Z::strCamel2Snake(str_replace('set', '', $method)));
+        $method = str_replace('set', '', $method);
+        return static::$noTransform ? $method:lcfirst(Z::strCamel2Snake($method)) ;
     }
 }
 abstract class Zls_Dao
@@ -3415,12 +3418,14 @@ abstract class Zls_Dao
     }
     /**
      * 获取排除字段
-     * @param $field
-     * @return array
+     * @param      $field
+     * @param bool $exPre
+     * @return array|string
      */
-    public function getReversalColumns($field)
+    public function getReversalColumns($field, $exPre = false)
     {
-        return array_diff(static::getColumns(), is_array($field) ? $field : explode(',', $field));
+        $fields = array_diff(static::getColumns(), is_array($field) ? $field : explode(',', $field));
+        return $exPre ? join($exPre, $fields) : $fields;
     }
     abstract public function getColumns();
     /**
