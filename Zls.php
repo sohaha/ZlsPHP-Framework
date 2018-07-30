@@ -2588,7 +2588,8 @@ class Zls_Database_ActiveRecord extends Zls_Database
     }
     public function select($select, $wrap = true)
     {
-        foreach (explode(',', $select) as $key) {
+        $selectArr = is_array($select)?$select:explode(',', $select);
+        foreach ($selectArr as $key) {
             $this->arSelect[] = [$key, $wrap];
         }
         return $this;
