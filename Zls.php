@@ -374,7 +374,7 @@ class Z
         $trace = new \Zls_Trace();
         if (!!$type) {
             if ($debug) {
-                $debug = self::debug(null, false, true);
+                $debug = self::debug(null, false, true,false);
                 $current = self::arrayGet(debug_backtrace(), 0, ['file' => '', 'line' => '']);
                 $debug['file'] = $current['file'] ? self::safePath($current['file']) : null;
                 $debug['line'] = $current['line'];
