@@ -7,7 +7,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @link          https://docs.73zls.com/zls-php/#/
  * @since         v2.1.23
- * @updatetime    2018-7-24 14:43:45
+ * @updatetime    2018-7-30 14:39:51
  */
 define("IN_ZLS", '2.1.23');
 define('ZLS_CORE_PATH', __FILE__);
@@ -169,7 +169,7 @@ class Z
         $cfg = null;
         if ($caching && self::arrayKeyExists($configFileName, $loadedConfig)) {
             $cfg = $loadedConfig[$configFileName];
-        } elseif ($filePath = \Zls::getConfig()->find($configFileName)) {
+        } elseif ($filePath = Zls::getConfig()->find($configFileName)) {
             $loadedConfig[$configFileName] = $cfg = include($filePath);
         } else {
             Z::throwIf(true, 500, 'config file [ ' . $configFileName . '.php ] not found', 'ERROR');
@@ -416,7 +416,7 @@ class Z
             if (substr_count($runTime, "E")) {
                 $runTime = floatval(substr($runTime, 5));
             }
-            $res = ['runtime' => ($runTime / 1000) . ($suffix ? 's' : ''), 'memory' => (\Zls::$zlsMemory ? self::convertRam(memory_get_usage() - \Zls::$zlsMemory, $suffix) : 'null')];
+            $res = ['runtime' => ($runTime / 1000) . ($suffix ? 's' : ''), 'memory' => (Zls::$zlsMemory ? self::convertRam(memory_get_usage() - Zls::$zlsMemory, $suffix) : 'null')];
         }
         return $toStr($res);
     }
@@ -1729,7 +1729,7 @@ class Z
         $a_num = ($a_count > 0) ? $a_count : 10;
         $a_num = $a_num % 2 == 0 ? $a_num + 1 : $a_num;
         $pages = ceil($total / $pagesize);
-        $curpage = intval($page) ? intval($page) : 1;
+        $curpage = (int)$page ?: 1;
         $curpage = $curpage > $pages || $curpage <= 0 ? 1 : $curpage;
         $start = $curpage - ($a_num - 1) / 2;
         $end = $curpage + ($a_num - 1) / 2;
@@ -1748,10 +1748,10 @@ class Z
             'total'   => $total,
             'count'   => $pages,
             'curpage' => $curpage,
-            'prefix'  => $curpage == 1 ? '' : str_replace('{page}', $curpage - 1, $url),
-            'start'   => str_replace('{page}', 1, $url),
-            'end'     => str_replace('{page}', $pages, $url),
-            'subfix'  => ($curpage == $pages || $pages == 0) ? '' : str_replace('{page}', $curpage + 1, $url),
+            'prefix'  => (int)($curpage == 1 ? '' : str_replace('{page}', $curpage - 1, $url)),
+            'start'   => (int)(str_replace('{page}', 1, $url)),
+            'end'     => (int)(str_replace('{page}', $pages, $url)),
+            'subfix'  => (int)(($curpage == $pages || $pages == 0) ? '' : str_replace('{page}', $curpage + 1, $url)),
         ];
         for ($i = $start; $i <= $end; $i++) {
             $result['pages'][$i] = str_replace('{page}', $i, $url);
@@ -2151,7 +2151,7 @@ class Zls
     public static function checkHmvc($hmvcModuleName, $throwException = true)
     {
         if (!empty($hmvcModuleName)) {
-            $config = \Zls::getConfig();
+            $config = Zls::getConfig();
             $hmvcModules = $config->getHmvcModules();
             if (empty($hmvcModules[$hmvcModuleName])) {
                 Z::throwIf($throwException, 500, 'Hmvc Module [ ' . $hmvcModuleName . ' ] not found, please check your config.', 'ERROR');
@@ -2452,7 +2452,7 @@ class Zls_Di
         if (is_array($definition)) {
             if (Z::isPluginMode()) {
                 self::$applicationDir = Z::config()->getApplicationDir();
-                \Zls::checkHmvc($definition['hmvc']);
+                Zls::checkHmvc($definition['hmvc']);
             }
             $definition = $definition['class'];
         }
@@ -2729,17 +2729,17 @@ class Zls_Database_ActiveRecord extends Zls_Database
             $limitArg = explode(',', $limit);
             if (count($limitArg) > 1) {
                 $offset = (int)$limitArg[1];
-                if ($limit = (int)$limitArg[0]) {
-                    $limit = $offset * ($limit - 1);
-                }
+                $limit = (int)$limitArg[0];
                 if (!!$orderBy) {
                     $orderBy = $orderBy . ' OFFSET ' . $limit . ' ROWS FETCH NEXT ' . $offset . '  ROWS ONLY ';
                 } else {
                     if ($limit > 0) {
+                        $originVal = $this->_values;
                         $primaryKey = $this->getPrimaryKey() ?: $this->execute('EXEC sp_pkeys @table_name=\'' . trim(strtr($from, ['[' => '', ']' => ''])) . '\'')->value('COLUMN_NAME');
                         if ($primaryKey) {
                             $orderBy = "\n" . ' ORDER BY ' . $primaryKey . ' ASC OFFSET ' . $limit . ' ROWS FETCH NEXT ' . $offset . '  ROWS ONLY ';
                         }
+                        $this->_values = $originVal;
                     } else {
                         $select = ' TOP ' . $offset . ' ' . $select;
                     }
@@ -3386,7 +3386,7 @@ abstract class Zls_Bean
     private static function _get($method)
     {
         $method = str_replace('get', '', $method);
-        return static::$noTransform ? $method:lcfirst(Z::strCamel2Snake(str_replace('get', '', $method))) ;
+        return static::$noTransform ? $method : lcfirst(Z::strCamel2Snake(str_replace('get', '', $method)));
     }
     public function __call($method, $args)
     {
@@ -3403,7 +3403,7 @@ abstract class Zls_Bean
     private static function _set($method)
     {
         $method = str_replace('set', '', $method);
-        return static::$noTransform ? $method:lcfirst(Z::strCamel2Snake($method)) ;
+        return static::$noTransform ? $method : lcfirst(Z::strCamel2Snake($method));
     }
 }
 abstract class Zls_Dao
@@ -4234,7 +4234,6 @@ abstract class Zls_Database
      * 执行一个sql语句，写入型的返回bool或者影响的行数（insert,delete,replace,update），搜索型的返回结果集
      * @param string $sql    sql语句
      * @param array  $values 参数
-     * @throws Zls_Exception_Database
      */
     public function execute($sql = '', array $values = [])
     {
@@ -4616,7 +4615,7 @@ class Zls_Router_PathInfo extends Zls_Router
         } else {
             $hmvcModule = $_hmvcModule;
         }
-        $hmvcModuleDirName = \Zls::checkHmvc($hmvcModule, false);
+        $hmvcModuleDirName = Zls::checkHmvc($hmvcModule, false);
         if (!$_hmvcModule && $hmvcModuleDirName && !$config->hmvcIsDomainOnly($hmvcModule)) {
             $uri = ltrim(substr($uri, strlen($hmvcModule)), '/');
         }
@@ -4989,7 +4988,7 @@ abstract class Zls_Exception extends \Exception
     }
     public function renderJson()
     {
-        $render = \Zls::getConfig()->getExceptionJsonRender();
+        $render = Zls::getConfig()->getExceptionJsonRender();
         if (is_callable($render)) {
             return $render($this);
         }
@@ -6507,7 +6506,7 @@ class Zls_Trace
             $content = $fn($content);
         }
         $content = $prefix . PHP_EOL . $debug . $content;
-        $callBack = \Z::config()->getTraceStatusCallBack();
+        $callBack = Z::config()->getTraceStatusCallBack();
         if ($callBack instanceof Closure) {
             $callBack($content, $type);
         } else {
@@ -6565,7 +6564,7 @@ class Zls_Trace
                 . var_export($v, true)
                 . PHP_EOL;
         }
-        $debug = \Z::debug(null, false, true);
+        $debug = Z::debug(null, false, true);
         $this->output(
             vsprintf(
                 "traceType : %s\ntime : %s\nruntime : %s\nmemory : %s\npath : %s\nline : %u\nargs : \n%s\n\n",
@@ -6574,7 +6573,7 @@ class Zls_Trace
                     date('Y-m-d H:i:s'),
                     $debug['runtime'] . 's',
                     $debug['memory'],
-                    \Z::safePath($data['file']),
+                    Z::safePath($data['file']),
                     $data['line'],
                     $arg,
                 ]
