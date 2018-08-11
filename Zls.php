@@ -4719,7 +4719,7 @@ class Zls_Exception_500 extends Zls_Exception
         $errorFile = '',
         $errorLine = '0'
     ) {
-        if($errorMessage === 'Class \'Zls_Dao\' not found'){
+        if ($errorMessage === 'Class \'Zls_Dao\' not found') {
             $errorMessage = 'Warning: command not installed, Please install "composer require zls/dao"' . PHP_EOL;
         }
         parent::__construct($errorMessage, $errorCode, $errorType, $errorFile, $errorLine);
@@ -5392,7 +5392,7 @@ class Zls_Config
     {
         if (!$this->exceptionJsonRender) {
             $this->exceptionJsonRender = function (\Exception $e) {
-                $run = Z::debug(null, false, true);
+                $run = Z::debug(null, false, true, false);
                 /**
                  * @var \Zls_Exception $e
                  */
@@ -6217,7 +6217,7 @@ class Zls_Trace
                 . var_export($v, true)
                 . PHP_EOL;
         }
-        $debug = Z::debug(null, false, true);
+        $debug = Z::debug(null, false, true, false);
         $this->output(
             vsprintf(
                 "traceType : %s\ntime : %s\nruntime : %s\nmemory : %s\npath : %s\nline : %u\nargs : \n%s\n\n",
