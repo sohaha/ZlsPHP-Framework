@@ -5392,7 +5392,7 @@ class Zls_Config
     {
         if (!$this->exceptionJsonRender) {
             $this->exceptionJsonRender = function (\Exception $e) {
-                $run = Z::debug(false);
+                $run = Z::debug(null, false, true);
                 /**
                  * @var \Zls_Exception $e
                  */
