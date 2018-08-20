@@ -7,11 +7,11 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @link          https://docs.73zls.com/zls-php/#/
  * @since         v2.1.23
- * @updatetime    2018-8-1 13:05:31
+ * @updatetime    2018-8-20 11:35:16
  */
 define("IN_ZLS", '2.1.23');
 define('ZLS_CORE_PATH', __FILE__);
-defined('ZLS_PATH') || define('ZLS_PATH', __DIR__ . '/');
+defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
 defined('ZLS_RUN_MODE_CLI') || define('ZLS_RUN_MODE_CLI', true);
 defined('ZLS_APP_PATH') || define('ZLS_APP_PATH', Z::realPath(ZLS_PATH . 'application', true));
@@ -2076,7 +2076,6 @@ class Zls
     }
     /**
      * 运行调度
-     * @return bool
      */
     public static function run()
     {
@@ -2212,7 +2211,6 @@ class Zls
      * web模式运行
      * @param bool $result
      * @return bool|mixed|null|string
-     * @throws ReflectionException
      */
     public static function runWeb($result = false)
     {
@@ -3636,7 +3634,6 @@ abstract class Zls_Database
     }
     /**
      * @return bool
-     * @throws \Zls_Exception_Database
      */
     public function begin()
     {
@@ -3647,9 +3644,6 @@ abstract class Zls_Database
         $this->_isInTransaction = true;
         return true;
     }
-    /**
-     * @return bool
-     */
     private function _init()
     {
         $info = [
@@ -3668,44 +3662,39 @@ abstract class Zls_Database
                 $connections = &$this->{$group[1]};
                 foreach ($configGroup as $key => $config) {
                     if (!Z::arrayKeyExists($key, $connections)) {
-                        try {
-                            if ($this->_driverTypeIsString()) {
-                                $options[PDO::ATTR_ERRMODE] = PDO::ERRMODE_EXCEPTION;
-                                $options[PDO::ATTR_PERSISTENT] = $this->getPconnect();
-                                $options[PDO::ATTR_STRINGIFY_FETCHES] = false;
-                                $options[PDO::ATTR_EMULATE_PREPARES] = false;
-                                $options[PDO::ATTR_ORACLE_NULLS] = PDO::NULL_TO_STRING;
-                                if ($this->_isMysql()) {
-                                    $options[PDO::ATTR_TIMEOUT] = $this->getTimeout();
-                                    $options[PDO::MYSQL_ATTR_INIT_COMMAND] = 'SET NAMES ' . $this->getCharset() . ' COLLATE ' . $this->getCollate();
-                                    $dsn = 'mysql:host=' . $config['hostname'] . ';port=' . $config['port'] . ';dbname=' . $this->getDatabase() . ';charset=' . $this->getCharset();
-                                    $connections[$key] = new \Zls_PDO($dsn, $config['username'], $config['password'], $options);
-                                    $connections[$key]->exec('SET NAMES ' . $this->getCharset());
-                                } elseif ($this->_isSqlsrv()) {
-                                    $dsn = 'sqlsrv:Server=' . $config['hostname'] . ',' . $config['port'] . ';Database=' . $this->getDatabase() . ';MultipleActiveResultSets=false';
-                                    unset($options[PDO::ATTR_PERSISTENT], $options[PDO::ATTR_EMULATE_PREPARES]);
-                                    $options = $options + [PDO::SQLSRV_ATTR_QUERY_TIMEOUT => $this->getTimeout(), PDO::SQLSRV_ATTR_FETCHES_NUMERIC_TYPE => true];
-                                    $connections[$key] = new \Zls_PDO($dsn, $config['username'], $config['password'], $options);
-                                    $connections[$key]->setAttribute(PDO::ATTR_STRINGIFY_FETCHES, false);
-                                } elseif ($this->_isSqlite()) {
-                                    Z::throwIf(!file_exists($this->getDatabase()), 'Database', 'sqlite3 database file [' . Z::realPath($this->getDatabase()) . '] not found', 'ERROR');
-                                    $connections[$key] = new \Zls_PDO('sqlite:' . $this->getDatabase(), null, null, $options);
-                                } else {
-                                    Z::throwIf(true, 'Database', 'unknown driverType [ ' . $this->getDriverType() . ' ]', 'ERROR');
-                                }
+                        if ($this->_driverTypeIsString()) {
+                            $options[PDO::ATTR_ERRMODE] = PDO::ERRMODE_EXCEPTION;
+                            $options[PDO::ATTR_PERSISTENT] = $this->getPconnect();
+                            $options[PDO::ATTR_STRINGIFY_FETCHES] = false;
+                            $options[PDO::ATTR_EMULATE_PREPARES] = false;
+                            $options[PDO::ATTR_ORACLE_NULLS] = PDO::NULL_TO_STRING;
+                            if ($this->_isMysql()) {
+                                $options[PDO::ATTR_TIMEOUT] = $this->getTimeout();
+                                $options[PDO::MYSQL_ATTR_INIT_COMMAND] = 'SET NAMES ' . $this->getCharset() . ' COLLATE ' . $this->getCollate();
+                                $dsn = 'mysql:host=' . $config['hostname'] . ';port=' . $config['port'] . ';dbname=' . $this->getDatabase() . ';charset=' . $this->getCharset();
+                                $connections[$key] = new \Zls_PDO($dsn, $config['username'], $config['password'], $options);
+                                $connections[$key]->exec('SET NAMES ' . $this->getCharset());
+                            } elseif ($this->_isSqlsrv()) {
+                                $dsn = 'sqlsrv:Server=' . $config['hostname'] . ',' . $config['port'] . ';Database=' . $this->getDatabase() . ';MultipleActiveResultSets=false';
+                                unset($options[PDO::ATTR_PERSISTENT], $options[PDO::ATTR_EMULATE_PREPARES]);
+                                $options = $options + [1001 => $this->getTimeout(), 1005 => true];
+                                $connections[$key] = new \Zls_PDO($dsn, $config['username'], $config['password'], $options);
+                                $connections[$key]->setAttribute(PDO::ATTR_STRINGIFY_FETCHES, false);
+                            } elseif ($this->_isSqlite()) {
+                                Z::throwIf(!file_exists($this->getDatabase()), 'Database', 'sqlite3 database file [' . Z::realPath($this->getDatabase()) . '] not found', 'ERROR');
+                                $connections[$key] = new \Zls_PDO('sqlite:' . $this->getDatabase(), null, null, $options);
                             } else {
-                                $db = $this->getDriverType();
-                                $connections[$key] = ($db instanceof Closure) ? $db() : $db;
+                                Z::throwIf(true, 'Database', 'unknown driverType [ ' . $this->getDriverType() . ' ]', 'ERROR');
                             }
-                            $getAttribute = $this->getAttribute();
-                            if (!empty($getAttribute) && is_array($getAttribute)) {
-                                foreach ($getAttribute as $k => $v) {
-                                    $connections[$key]->setAttribute($k, $v);
-                                }
+                        } else {
+                            $db = $this->getDriverType();
+                            $connections[$key] = ($db instanceof Closure) ? $db() : $db;
+                        }
+                        $getAttribute = $this->getAttribute();
+                        if (!empty($getAttribute) && is_array($getAttribute)) {
+                            foreach ($getAttribute as $k => $v) {
+                                $connections[$key]->setAttribute($k, $v);
                             }
-                        } catch (\Exception $e) {
-                            $err = Z::toUtf8($e->getMessage());
-                            throw new \Zls_Exception_Database($err);
                         }
                     }
                 }
@@ -3793,11 +3782,6 @@ abstract class Zls_Database
     {
         return $this->attribute;
     }
-    /**
-     * @param     $message
-     * @param int $code
-     * @throws Zls_Exception_Database
-     */
     protected function _displayError($message, $code = 0)
     {
         $sql = $this->_lastSql ? ' , ' . "\n" . 'with query : ' . $this->_lastSql : '';
@@ -3810,14 +3794,14 @@ abstract class Zls_Database
         if ($this->getDebug() || $this->_isInTransaction) {
             if ($message instanceof Exception) {
                 throw new \Zls_Exception_Database(
-                    $group . $this->_errorMsg,
+                    Z::toUtf8($group . $this->_errorMsg),
                     500,
-                    'Zls_Exception_Database',
+                    'Zls_Exception_22Database',
                     $message->getFile(),
                     $message->getLine()
                 );
             } else {
-                throw new \Zls_Exception_Database($group . $message . $sql, $code);
+                throw new \Zls_Exception_Database( Z::toUtf8($group . $message . $sql), $code);
             }
         }
     }
@@ -3884,6 +3868,8 @@ abstract class Zls_Database
      * 执行一个sql语句，写入型的返回bool或者影响的行数（insert,delete,replace,update），搜索型的返回结果集
      * @param string $sql    sql语句
      * @param array  $values 参数
+     * @return array|bool|int|Zls_Database_Resultset
+     * @throws Zls_Exception_Database
      */
     public function execute($sql = '', array $values = [])
     {
@@ -4470,13 +4456,8 @@ abstract class Zls_Exception extends \Exception
     protected $trace;
     protected $httpStatusLine = 'HTTP/1.0 500 Internal Server Error';
     protected $exceptionName = 'Zls_Exception';
-    public function __construct(
-        $errorMessage = '',
-        $errorCode = 0,
-        $errorType = 'Exception',
-        $errorFile = '',
-        $errorLine = '0'
-    ) {
+    public function __construct($errorMessage = '', $errorCode = 0, $errorType = 'Exception', $errorFile = '', $errorLine = '0')
+    {
         parent::__construct($errorMessage, $errorCode);
         $this->errorMessage = $errorMessage;
         $this->errorCode = $errorCode;
@@ -4485,7 +4466,7 @@ abstract class Zls_Exception extends \Exception
         $this->errorLine = $errorLine;
         $this->trace = debug_backtrace(false);
         if (in_array($errorCode, [500, 404])) {
-            z::header($errorCode === 404 ? 'HTTP/1.1 404 Not Found' : 'HTTP/1.1 500 Internal Server Error');
+            Z::header($errorCode === 404 ? 'HTTP/1.1 404 Not Found' : 'HTTP/1.1 500 Internal Server Error');
         }
     }
     public function getErrorCode()
@@ -4729,13 +4710,7 @@ class Zls_Exception_Database extends Zls_Exception
 {
     protected $exceptionName = 'Zls_Exception_Database';
     protected $httpStatusLine = 'HTTP/1.0 500 Internal Server Error';
-    public function __construct(
-        $errorMessage = '',
-        $errorCode = 500,
-        $errorType = 'Exception',
-        $errorFile = '',
-        $errorLine = '0'
-    ) {
+    public function __construct($errorMessage = '', $errorCode = 500, $errorType = 'Exception', $errorFile = '', $errorLine = '0') {
         parent::__construct($errorMessage, $errorCode, $errorType, $errorFile, $errorLine);
     }
 }
@@ -5816,8 +5791,8 @@ class Zls_Logger_Dispatcher
             self::setMemReverse();
             self::$instance = new self();
             Z::isPluginMode() ? ini_set('display_errors', true) : ini_set('display_errors', false);
-            set_exception_handler([self::$instance, 'handleException']);
             set_error_handler([self::$instance, 'handleError']);
+            set_exception_handler([self::$instance, 'handleException']);
             register_shutdown_function([self::$instance, 'handleFatal']);
         }
         return self::$instance;
