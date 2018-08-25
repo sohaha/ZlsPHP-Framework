@@ -8,8 +8,8 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  *
  * @see          https://docs.73zls.com/zls-php/#/
- * @since         v2.1.25
- * @updatetime    2018-8-22 19:17:57
+ * @since         v2.1.26
+ * @updatetime    2018-8-25 13:46:08
  */
 define('IN_ZLS', '2.1.23');
 define('ZLS_CORE_PATH', __FILE__);
@@ -479,7 +479,7 @@ class Z
      *
      * @return string
      */
-    public static function safePath($path, $prefix = '~APPPATH~', $entr = false)
+    public static function safePath($path, $prefix = '~APP~', $entr = false)
     {
         if (!$path) {
             return '';
@@ -487,7 +487,8 @@ class Z
         $path = self::realPath($path);
         $siteRoot = self::realPath(self::server('DOCUMENT_ROOT'));
         $_path = str_replace($siteRoot, '', $path);
-        $entr = true === $entr ? ZLS_PATH : (false === $entr ? ZLS_APP_PATH : $entr);
+        $entr = true === $entr ? ZLS_PATH : (false === $entr ? self::realPath(ZLS_APP_PATH.'..', true) :
+            $entr);
         $entr = self::realPath($entr);
         $relPath = str_replace($siteRoot, '', rtrim($entr, '/'));
         return $prefix.str_replace($relPath, '', $_path);
@@ -4351,9 +4352,9 @@ abstract class Zls_Task
         if ($this->debug || $this->debugError) {
             $nowTime = ''.Z::microtime();
             echo($time ? date('[Y-m-d H:i:s.'.substr(
-                            $nowTime,
-                            strlen($nowTime) - 3
-                        ).']').' [PID:'.sprintf(
+                                  $nowTime,
+                                  strlen($nowTime) - 3
+                              ).']').' [PID:'.sprintf(
                         '%- 5d',
                         getmypid()
                     ).'] ' : '').$msg."\n";
@@ -4548,9 +4549,9 @@ abstract class Zls_Task_Multiple extends Zls_Task
         if (!$lockFilePath) {
             $tempDirPath = Z::config()->getStorageDirPath();
             $key = md5(Z::config()->getApplicationDir().
-                Z::config()->getClassesDirName().'/'
-                .Z::config()->getTaskDirName().'/'
-                .str_replace('_', '/', get_class($this)).'.php');
+                       Z::config()->getClassesDirName().'/'
+                       .Z::config()->getTaskDirName().'/'
+                       .str_replace('_', '/', get_class($this)).'.php');
             $lockFilePath = Z::realPathMkdir($tempDirPath.'taskMultiple').'/'.$key.'.pid';
         }
         $alivedPids = [];
@@ -6007,12 +6008,12 @@ class Zls_Logger_Dispatcher
             $this->dispatch($exception);
         } else {
             $this->dispatch(new \Zls_Exception_500(
-                $exception->getMessage(),
-                $exception->getCode(),
-                get_class($exception),
-                $exception->getFile(),
-                $exception->getLine()
-            ));
+                                $exception->getMessage(),
+                                $exception->getCode(),
+                                get_class($exception),
+                                $exception->getFile(),
+                                $exception->getLine()
+                            ));
         }
     }
     /**
@@ -6086,20 +6087,20 @@ class Zls_Logger_Dispatcher
         self::$memReverse = null;
         if (!Z::isSwoole()) {
             $this->dispatch(new \Zls_Exception_500(
-                $lastError['message'],
-                $lastError['type'],
-                'Fatal Error',
-                $lastError['file'],
-                $lastError['line']
-            ));
+                                $lastError['message'],
+                                $lastError['type'],
+                                'Fatal Error',
+                                $lastError['file'],
+                                $lastError['line']
+                            ));
         } else {
             $error = $this->dispatch(new \Zls_Exception_500(
-                $lastError['message'],
-                $lastError['type'],
-                'Fatal Error',
-                $lastError['file'],
-                $lastError['line']
-            ), true);
+                                         $lastError['message'],
+                                         $lastError['type'],
+                                         'Fatal Error',
+                                         $lastError['file'],
+                                         $lastError['line']
+                                     ), true);
             if (Z::isSwoole(true)) {
                 $response = Z::di()->makeShared('SwooleResponse');
                 $response->write($error);
