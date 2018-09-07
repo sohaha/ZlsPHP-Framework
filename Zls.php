@@ -9,7 +9,7 @@
  *
  * @see          https://docs.73zls.com/zls-php/#/
  * @since         v2.1.26
- * @updatetime    2018-8-25 13:46:08
+ * @updatetime    2018-09-07 15:46:08
  */
 define('IN_ZLS', '2.1.23');
 define('ZLS_CORE_PATH', __FILE__);
@@ -2731,6 +2731,13 @@ class Zls_Database_ActiveRecord extends Zls_Database
         $this->_sqlType = 'select';
         $this->_currentSql = '';
     }
+    /**
+     * 展示字段
+     * @param      $select
+     * @param bool $wrap
+     *
+     * @return $this
+     */
     public function select($select, $wrap = true)
     {
         $selectArr = is_array($select) ? $select : explode(',', $select);
@@ -2739,11 +2746,25 @@ class Zls_Database_ActiveRecord extends Zls_Database
         }
         return $this;
     }
+    /**
+     * 联表
+     * @param        $table
+     * @param        $on
+     * @param string $type
+     *
+     * @return $this
+     */
     public function join($table, $on, $type = '')
     {
         $this->arJoin[] = [$table, $on, strtoupper($type)];
         return $this;
     }
+    /**
+     * 分组
+     * @param $key
+     *
+     * @return $this
+     */
     public function groupBy($key)
     {
         $key = explode(',', $key);
@@ -2752,21 +2773,50 @@ class Zls_Database_ActiveRecord extends Zls_Database
         }
         return $this;
     }
+    /**
+     * 结果过滤
+     * @param        $having
+     * @param string $leftWrap
+     * @param string $rightWrap
+     *
+     * @return $this
+     */
     public function having($having, $leftWrap = 'AND', $rightWrap = '')
     {
         $this->arHaving[] = [$having, $leftWrap, $rightWrap, count($this->arHaving)];
         return $this;
     }
+    /**
+     * 排序
+     * @param        $key
+     * @param string $type
+     *
+     * @return $this
+     */
     public function orderBy($key, $type = 'desc')
     {
         $this->arOrderby[$key] = $type;
         return $this;
     }
+    /**
+     * 结果数量
+     * @param $offset
+     * @param $count
+     *
+     * @return $this
+     */
     public function limit($offset, $count)
     {
         $this->arLimit = "$offset , $count";
         return $this;
     }
+    /**
+     * 插入数据
+     * @param       $table
+     * @param array $data
+     *
+     * @return $this
+     */
     public function insert($table, array $data)
     {
         $this->_sqlType = 'insert';
@@ -2776,7 +2826,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
         return $this;
     }
     /**
-     * 查询表.
+     * 查询表
      *
      * @param string|array|Closure $from
      * @param string               $as   别名
@@ -2813,6 +2863,10 @@ class Zls_Database_ActiveRecord extends Zls_Database
     {
         return clone $this;
     }
+    /**
+     * 获取sql语句
+     * @return mixed|string
+     */
     public function getSql()
     {
         if ($this->_currentSql) {
@@ -3029,9 +3083,6 @@ class Zls_Database_ActiveRecord extends Zls_Database
         }
         return implode(',', $selects);
     }
-    /**
-     * @return string
-     */
     public function getPrimaryKey()
     {
         if (!$this->primaryKey) {
@@ -3210,6 +3261,13 @@ class Zls_Database_ActiveRecord extends Zls_Database
         $sql[] = $this->_getWhere();
         return implode(' ', $sql);
     }
+    /**
+     * 替换数据
+     * @param       $table
+     * @param array $data
+     *
+     * @return $this
+     */
     public function replace($table, array $data)
     {
         $this->_sqlType = 'replace';
@@ -3217,6 +3275,13 @@ class Zls_Database_ActiveRecord extends Zls_Database
         $this->from($table);
         return $this;
     }
+    /**
+     * 批量插入
+     * @param       $table
+     * @param array $data
+     *
+     * @return $this
+     */
     public function insertBatch($table, array $data)
     {
         $this->_sqlType = 'insertBatch';
@@ -3225,6 +3290,13 @@ class Zls_Database_ActiveRecord extends Zls_Database
         $this->from($table);
         return $this;
     }
+    /**
+     * 批量替换
+     * @param       $table
+     * @param array $data
+     *
+     * @return $this
+     */
     public function replaceBatch($table, array $data)
     {
         $this->_sqlType = 'replaceBatch';
@@ -3233,6 +3305,13 @@ class Zls_Database_ActiveRecord extends Zls_Database
         $this->from($table);
         return $this;
     }
+    /**
+     * 删除数据
+     * @param       $table
+     * @param array $where
+     *
+     * @return $this
+     */
     public function delete($table, array $where = [])
     {
         $this->from($table);
@@ -3240,6 +3319,14 @@ class Zls_Database_ActiveRecord extends Zls_Database
         $this->_sqlType = 'delete';
         return $this;
     }
+    /**
+     * 查询条件
+     * @param        $where
+     * @param string $leftWrap
+     * @param string $rightWrap
+     *
+     * @return $this
+     */
     public function where($where, $leftWrap = 'AND', $rightWrap = '')
     {
         if (!empty($where)) {//&& is_array($where)
@@ -3247,6 +3334,14 @@ class Zls_Database_ActiveRecord extends Zls_Database
         }
         return $this;
     }
+    /**
+     * 更新数据
+     * @param       $table
+     * @param array $data
+     * @param array $where
+     *
+     * @return $this
+     */
     public function update($table, array $data = [], array $where = [])
     {
         $this->from($table);
@@ -3262,6 +3357,14 @@ class Zls_Database_ActiveRecord extends Zls_Database
         }
         return $this;
     }
+    /**
+     * 设置数据
+     * @param      $key
+     * @param      $value
+     * @param bool $wrap
+     *
+     * @return $this
+     */
     public function set($key, $value, $wrap = true)
     {
         $this->_sqlType = 'update';
@@ -3269,7 +3372,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
         return $this;
     }
     /**
-     * 批量更新.
+     * 批量更新
      *
      * @param string $table  表名
      * @param array  $values 必须包含$index字段
@@ -3292,7 +3395,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
         return $this;
     }
     /**
-     * 加表前缀，保护字段名和表名.
+     * 加表前缀，保护字段名和表名
      *
      * @param string $str 比如：user.id , id
      *
@@ -3422,16 +3525,34 @@ class Zls_Database_Resultset
     {
         $this->_resultSet = $resultSet;
     }
+    /**
+     * 读取数据总数
+     * @return int
+     */
     public function total()
     {
         return count($this->_resultSet);
     }
+    /**
+     * bean对象
+     * @param      $beanClassName
+     * @param null $index
+     *
+     * @return Zls_Bean
+     */
     public function bean($beanClassName, $index = null)
     {
         $row = $this->row($index);
         $object = Z::bean($beanClassName, $row, false);
         return $object;
     }
+    /**
+     * 读取单条数据
+     * @param null $index
+     * @param bool $isAssoc
+     *
+     * @return array|mixed
+     */
     public function row($index = null, $isAssoc = true)
     {
         if (!is_null($index) && Z::arrayKeyExists($index, $this->_resultSet)) {
@@ -3460,6 +3581,12 @@ class Zls_Database_Resultset
         }
         return $objects;
     }
+    /**
+     * 读取多条数据
+     * @param bool $isAssoc
+     *
+     * @return array
+     */
     public function rows($isAssoc = true)
     {
         $key = $this->_rowsKey;
@@ -3490,6 +3617,12 @@ class Zls_Database_Resultset
             }
         }
     }
+    /**
+     * 读取多条数据值
+     * @param $columnName
+     *
+     * @return array
+     */
     public function values($columnName)
     {
         $rowsKey = $this->_rowsKey;
@@ -3508,11 +3641,25 @@ class Zls_Database_Resultset
         }
         return $columns;
     }
+    /**
+     * 读取数据值
+     * @param      $columnName
+     * @param null $default
+     * @param null $index
+     *
+     * @return mixed|null
+     */
     public function value($columnName, $default = null, $index = null)
     {
         $row = $this->row($index);
         return ($columnName && Z::arrayKeyExists($columnName, $row)) ? $row[$columnName] : $default;
     }
+    /**
+     * 设置数据数组下标
+     * @param $columnName
+     *
+     * @return $this
+     */
     public function key($columnName)
     {
         $this->_rowsKey = $columnName;
@@ -3643,6 +3790,7 @@ abstract class Zls_Database
     }
     /**
      * 锁定数据库连接，后面的读写都使用同一个主数据库连接.
+     * @return $this
      */
     public function lock()
     {
@@ -3651,12 +3799,17 @@ abstract class Zls_Database
     }
     /**
      * 解锁数据库连接，后面的读写使用不同的数据库连接.
+     * @return $this
      */
     public function unlock()
     {
         $this->_locked = false;
         return $this;
     }
+    /**
+     * 获取上一条数据id（主键）
+     * @return int
+     */
     public function lastId()
     {
         if ($this->_isSqlite()) {
@@ -5242,23 +5395,23 @@ class Zls_SeparationRouter extends Zls_Route
 /**
  * @property Zls_Exception_Handle $exceptionHandle
  *
- * @method self                         setHmvcModules(array $hmvcs)
- * @method self                         setEnvironment(string $environment)
- * @method self                         setShowError(boolean $showError)
- * @method self                         setTraceStatus($e)
- * @method self                         setApiDocToken(string $token)
- * @method self                         setIsRewrite(boolean $isRewrite)
- * @method self                         setSeparationRouter(boolean $separationRouter)
- * @method self                         setDefaultController(string $defaultController)
- * @method self                         setDefaultMethod($e)
- * @method self                         setMethodPrefix($e)
- * @method self                         setMethodUriSubfix($e)
- * @method self                         setMethodParametersDelimiter($e)
- * @method self                         setExceptionHandle($e)
- * @method self                         setOutputJsonRender($e)
- * @method self                         setLogsSubDirNameFormat($e)
- * @method self                         setCommands($e)
- * @method self                         setHmvcDirName($e)
+ * @method Zls_Config                         setHmvcModules(array $hmvcs)
+ * @method Zls_Config                         setEnvironment(string $environment)
+ * @method Zls_Config                         setShowError(boolean $showError)
+ * @method Zls_Config                         setTraceStatus($e)
+ * @method Zls_Config                         setApiDocToken(string $token)
+ * @method Zls_Config                         setIsRewrite(boolean $isRewrite)
+ * @method Zls_Config                         setSeparationRouter(boolean $separationRouter)
+ * @method Zls_Config                         setDefaultController(string $defaultController)
+ * @method Zls_Config                         setDefaultMethod($e)
+ * @method Zls_Config                         setMethodPrefix($e)
+ * @method Zls_Config                         setMethodUriSubfix($e)
+ * @method Zls_Config                         setMethodParametersDelimiter($e)
+ * @method Zls_Config                         setExceptionHandle($e)
+ * @method Zls_Config                         setOutputJsonRender($e)
+ * @method Zls_Config                         setLogsSubDirNameFormat($e)
+ * @method Zls_Config                         setCommands($e)
+ * @method Zls_Config                         setHmvcDirName($e)
  * @method string                       getBeanDirName()
  * @method string                       getExceptionLevel()
  * @method string                       getApplicationDir()
@@ -5267,7 +5420,6 @@ class Zls_SeparationRouter extends Zls_Route
  * @method string                       getCookiePrefix()
  * @method string                       getCacheConfig()
  * @method array                        getHmvcModules()
- * @method \Zls_Session                 getSessionHandle()
  * @method string                       getTaskDirName()
  * @method string                       getPrimaryApplicationDir()
  * @method string                       getMethodPrefix()
@@ -5285,6 +5437,7 @@ class Zls_SeparationRouter extends Zls_Route
  * @method array                        getMethodCacheConfig()
  * @method bool                         getExceptionControl()
  * @method \Zls_Maintain_Handle_Default getMaintainModeHandle()
+ * @method \Zls_Session                 getSessionHandle()
  * @method array                        getCommands()
  * @method bool                         getIsRewrite()
  */
