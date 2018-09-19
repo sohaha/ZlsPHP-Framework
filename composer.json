@@ -11,7 +11,11 @@
     }
   ],
   "autoload": {
-    "files": ["Zls.php"]
+    "files": [
+      "Zls.php"
+    ]
   },
-  "require": {}
+  "require": {
+    "ext-pdo": "*"
+  }
 }
