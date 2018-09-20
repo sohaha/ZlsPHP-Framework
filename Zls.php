@@ -2406,7 +2406,7 @@ class Zls_Di
 {
     protected static $_instances = [];
     protected static $_service   = [];
-    protected static $applicationDir;
+    protected static $appDir;
     public function lists()
     {
         return ['service' => self::$_service, 'instances' => self::$_instances];
@@ -2447,7 +2447,7 @@ class Zls_Di
         $definition = self::$_service[$name];
         if (is_array($definition)) {
             if (Z::isPluginMode()) {
-                self::$applicationDir = Z::config()->getAppDir();
+                self::$appDir = Z::config()->getAppDir();
                 Zls::checkHmvc($definition['hmvc']);
             }
             $definition = $definition['class'];
@@ -2485,9 +2485,9 @@ class Zls_Di
             } else {
                 $closure = clone $definition;
             }
-            if (self::$applicationDir) {
-                Z::config()->setAppDir(self::$applicationDir);
-                self::$applicationDir = null;
+            if (self::$appDir) {
+                Z::config()->setAppDir(self::$appDir);
+                self::$appDir = null;
             }
             return $closure;
         };
@@ -5202,19 +5202,19 @@ class Zls_SeparationRouter extends Zls_Route
  */
 class Zls_Config
 {
-    private static $alias                      = [];
-    private $applicationDir             = '';
-    private $primaryApplicationDir      = '';
-    private $indexDir                   = '';
-    private $commands                   = [];
-    private $classesDirName             = 'classes';
-    private $hmvcDirName                = 'hmvc';
-    private $libraryDirName             = 'library';
-    private $functionsDirName           = 'functions';
-    private $storageDirPath             = '';
-    private $viewsDirName               = 'views';
-    private $configDirName              = 'config';
-    private $controllerDirName          = 'Controller';
+    private static $alias            = [];
+    private        $appDir           = '';
+    private        $primaryAppDir    = '';
+    private        $indexDir         = '';
+    private        $commands         = [];
+    private        $classesDirName   = 'classes';
+    private        $hmvcDirName      = 'hmvc';
+    private        $libraryDirName   = 'library';
+    private        $functionsDirName = 'functions';
+    private        $storageDirPath   = '';
+    private        $viewsDirName     = 'views';
+    private        $configDirName    = 'config';
+    private        $controllerDirName = 'Controller';
     private $businessDirName            = 'Business';
     private $daoDirName                 = 'Dao';
     private $beanDirName                = 'Bean';
@@ -5758,16 +5758,16 @@ class Zls_Config
             }
         }
     }
-    public function setAppDir($applicationDir)
+    public function setAppDir($appDir)
     {
-        $this->applicationDir = Z::realPath($applicationDir, true);
-        $this->setPrimaryAppDir($this->applicationDir);
+        $this->appDir = Z::realPath($appDir, true);
+        $this->setPrimaryAppDir($this->appDir);
         return $this;
     }
-    public function setPrimaryAppDir($primaryApplicationDir = '')
+    public function setPrimaryAppDir($primaryAppDir = '')
     {
-        if (empty($this->primaryApplicationDir)) {
-            $this->primaryApplicationDir = Z::realPath($primaryApplicationDir ?: $this->applicationDir, true);
+        if (empty($this->primaryAppDir)) {
+            $this->primaryAppDir = Z::realPath($primaryAppDir ?: $this->appDir, true);
         }
         return $this;
     }
