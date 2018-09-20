@@ -6,7 +6,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.26
- * @updatetime    2018-09-07 15:40:18
+ * @updatetime    2018-09-20 11:40:11
  */
 define('IN_ZLS', '2.1.26');
 define('ZLS_CORE_PATH', __FILE__);
@@ -5458,7 +5458,7 @@ class Zls_Config
     }
     public function getOutputJsonRender()
     {
-        z::header('Content-Type: app/json; charset=UTF-8');
+        z::header('Content-Type: application/json; charset=UTF-8');
         if (empty($this->outputJsonRender)) {
             $this->outputJsonRender = function () {
                 $args = func_get_args();
