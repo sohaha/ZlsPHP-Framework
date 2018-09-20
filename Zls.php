@@ -8,12 +8,12 @@
  * @since         v2.1.26
  * @updatetime    2018-09-07 15:40:18
  */
-define('IN_ZLS', '2.1.23');
+define('IN_ZLS', '2.1.26');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd().'/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
 defined('ZLS_RUN_MODE_CLI') || define('ZLS_RUN_MODE_CLI', true);
-defined('ZLS_APP_PATH') || define('ZLS_APP_PATH', Z::realPath(ZLS_PATH.'application', true));
+defined('ZLS_APP_PATH') || define('ZLS_APP_PATH', Z::realPath(ZLS_PATH.'app', true));
 defined('ZLS_INDEX_NAME') || define('ZLS_INDEX_NAME', pathinfo(__FILE__, PATHINFO_BASENAME));
 defined('ZLS_PACKAGES_PATH') || define('ZLS_PACKAGES_PATH', ZLS_APP_PATH.'packages/');
 interface Zls_Logger
@@ -78,7 +78,7 @@ class z
                 $path = implode('/', $path);
             }
             if (!file_exists($path)) {
-                mkdir($path, 0700, true);
+                @mkdir($path, 0700, true);
             }
         });
     }
@@ -541,9 +541,6 @@ class z
             self::$dbInstances[$key]->close();
             unset(self::$dbInstances[$key]);
         } else {
-            array_map(function (\Zls_Database_ActiveRecord $db) {
-                $db->close();
-            }, self::$dbInstances);
             self::$dbInstances = [];
         }
     }
@@ -2064,7 +2061,7 @@ class Zls
             $_POST = Z::stripSlashes($_POST);
             $_COOKIE = Z::stripSlashes($_COOKIE);
         }
-        $zlsConfig->setApplicationDir(ZLS_APP_PATH);
+        $zlsConfig->setAppDir(ZLS_APP_PATH);
         $zlsConfig->addPackage(ZLS_APP_PATH);
         $zlsConfig->composer();
         return $zlsConfig;
@@ -2156,8 +2153,8 @@ class Zls
             $hmvcModuleDirName = $hmvcModules[$hmvcModuleName];
             if (!Z::arrayKeyExists($hmvcModuleName, self::$loadedModules)) {
                 self::$loadedModules[$hmvcModuleName] = 1;
-                $hmvcModulePath = $config->getApplicationDir().$config->getHmvcDirName().'/'.$hmvcModuleDirName.'/';
-                $config->setApplicationDir($hmvcModulePath)->addMasterPackage($hmvcModulePath)->bootstrap();
+                $hmvcModulePath = $config->getAppDir().$config->getHmvcDirName().'/'.$hmvcModuleDirName.'/';
+                $config->setAppDir($hmvcModulePath)->addMasterPackage($hmvcModulePath)->bootstrap();
             }
             return $hmvcModuleDirName;
         }
@@ -2450,7 +2447,7 @@ class Zls_Di
         $definition = self::$_service[$name];
         if (is_array($definition)) {
             if (Z::isPluginMode()) {
-                self::$applicationDir = Z::config()->getApplicationDir();
+                self::$applicationDir = Z::config()->getAppDir();
                 Zls::checkHmvc($definition['hmvc']);
             }
             $definition = $definition['class'];
@@ -2489,7 +2486,7 @@ class Zls_Di
                 $closure = clone $definition;
             }
             if (self::$applicationDir) {
-                Z::config()->setApplicationDir(self::$applicationDir);
+                Z::config()->setAppDir(self::$applicationDir);
                 self::$applicationDir = null;
             }
             return $closure;
@@ -4004,13 +4001,11 @@ abstract class Zls_Database
      * 执行一个sql语句，写入型的返回bool或者影响的行数（insert,delete,replace,update），搜索型的返回结果集
      * @param string $sql    sql语句
      * @param array  $values 参数
+     * @param bool   $reconnection
      * @return array|bool|int|Zls_Database_Resultset
-     * @throws Zls_Exception_Database
      */
-    public function execute($sql = '', array $values = [])
+    public function execute($sql = '', array $values = [], $reconnection=true)
     {
-        $orginSql = $sql;
-        $orginValues = $values;
         $trace = [];
         if ($this->slowQueryDebug || $this->indexDebug) {
             $trace = Z::tap(debug_backtrace(), function (&$trace) {
@@ -4157,12 +4152,12 @@ abstract class Zls_Database
             $this->_cacheTime = null;
             $this->_reset();
         } catch (\Exception $e) {
-            if (!stristr($e->getMessage(), 'server has gone away')) {
+            if ($reconnection&&stristr($e->getMessage(), 'server has gone away')) {
+                $this->close();
+                return $this->execute($sql, $values, false);
+            } else {
                 $this->_reset();
                 $this->_displayError($e);
-            } else {
-                $this->close();
-                return $this->execute($sql, $values);
             }
         }
         if ($this->_isMysql() && true == Z::config()->getTraceStatus()) {
@@ -4486,7 +4481,7 @@ abstract class Zls_Task_Single extends Zls_Task
         if (!$lockFilePath) {
             $tempDirPath = Z::config()->getStorageDirPath();
             $key = md5(
-                Z::config()->getApplicationDir().Z::config()->getClassesDirName().'/'
+                Z::config()->getAppDir().Z::config()->getClassesDirName().'/'
                 .Z::config()->getTaskDirName().'/'.str_replace('_', '/', get_class($this)).'.php'
             );
             $lockFilePath = Z::realPathMkdir($tempDirPath.'taskSingle').'/'.$key.'.pid';
@@ -4517,7 +4512,7 @@ abstract class Zls_Task_Multiple extends Zls_Task
         $lockFilePath = Z::arrayGet($args, 'pid');
         if (!$lockFilePath) {
             $tempDirPath = Z::config()->getStorageDirPath();
-            $key = md5(Z::config()->getApplicationDir().Z::config()->getClassesDirName().'/'.Z::config()->getTaskDirName().'/'.str_replace('_', '/', get_class($this)).'.php');
+            $key = md5(Z::config()->getAppDir().Z::config()->getClassesDirName().'/'.Z::config()->getTaskDirName().'/'.str_replace('_', '/', get_class($this)).'.php');
             $lockFilePath = Z::realPathMkdir($tempDirPath.'taskMultiple').'/'.$key.'.pid';
         }
         $alivedPids = [];
@@ -4900,14 +4895,14 @@ class Zls_View
     public function load($viewName, $data = [], $return = false)
     {
         $config = Z::config();
-        $path = $config->getApplicationDir().$config->getViewsDirName().'/'.$viewName.'.php';
+        $path = $config->getAppDir().$config->getViewsDirName().'/'.$viewName.'.php';
         $hmvcModules = $config->getHmvcModules();
         $hmvcDirName = Z::arrayGet($hmvcModules, $config->getRoute()->getHmvcModuleName(), '');
         if ($hmvcDirName) {
-            $hmvcPath = Z::realPath($config->getPrimaryApplicationDir().$config->getHmvcDirName().'/'.$hmvcDirName);
+            $hmvcPath = Z::realPath($config->getPrimaryAppDir().$config->getHmvcDirName().'/'.$hmvcDirName);
             $trace = debug_backtrace();
             $calledIsInHmvc = false;
-            $appPath = Z::realPath($config->getApplicationDir());
+            $appPath = Z::realPath($config->getAppDir());
             foreach ($trace as $t) {
                 $filepath = Z::arrayGet($t, 'file', '');
                 if (!empty($filepath)) {
@@ -4923,7 +4918,7 @@ class Zls_View
                 }
             }
             if (!$calledIsInHmvc) {
-                $path = $config->getPrimaryApplicationDir().$config->getViewsDirName().'/'.$viewName.'.php';
+                $path = $config->getPrimaryAppDir().$config->getViewsDirName().'/'.$viewName.'.php';
             }
         }
         return $this->loadRaw($path, $data, $return);
@@ -4961,7 +4956,7 @@ class Zls_View
     public function loadParent($viewName, $data = [], $return = false)
     {
         $config = Z::config();
-        $path = $config->getPrimaryApplicationDir().$config->getViewsDirName().'/'.$viewName.'.php';
+        $path = $config->getPrimaryAppDir().$config->getViewsDirName().'/'.$viewName.'.php';
         return $this->loadRaw($path, $data, $return);
     }
 }
@@ -5178,14 +5173,14 @@ class Zls_SeparationRouter extends Zls_Route
  * @method string                       getBeanDirName()
  * @method string                       getExceptionMemoryReserveSize()
  * @method string                       getExceptionLevel()
- * @method string                       getApplicationDir()
+ * @method string                       getAppDir()
  * @method string                       getClassesDirName()
  * @method string                       getControllerDirName()
  * @method string                       getCookiePrefix()
  * @method string                       getCacheConfig()
  * @method array                        getHmvcModules()
  * @method string                       getTaskDirName()
- * @method string                       getPrimaryApplicationDir()
+ * @method string                       getPrimaryAppDir()
  * @method string                       getMethodPrefix()
  * @method string                       getBusinessDirName()
  * @method string                       getDaoDirName()
@@ -5463,7 +5458,7 @@ class Zls_Config
     }
     public function getOutputJsonRender()
     {
-        z::header('Content-Type: application/json; charset=UTF-8');
+        z::header('Content-Type: app/json; charset=UTF-8');
         if (empty($this->outputJsonRender)) {
             $this->outputJsonRender = function () {
                 $args = func_get_args();
@@ -5536,7 +5531,7 @@ class Zls_Config
     }
     public function getStorageDirPath()
     {
-        return empty($this->storageDirPath) ? $this->getPrimaryApplicationDir().'storage/' : $this->storageDirPath;
+        return empty($this->storageDirPath) ? $this->getPrimaryAppDir().'storage/' : $this->storageDirPath;
     }
     public function setStorageDirPath($storageDirPath)
     {
@@ -5755,21 +5750,21 @@ class Zls_Config
      */
     public function bootstrap()
     {
-        if (file_exists($bootstrap = $this->getApplicationDir().'bootstrap.php')) {
+        if (file_exists($bootstrap = $this->getAppDir().'bootstrap.php')) {
             if (!Z::isSwoole()) {
                 Z::includeOnce($bootstrap);
             } else {
-                Z::swooleBootstrap($this->getApplicationDir());
+                Z::swooleBootstrap($this->getAppDir());
             }
         }
     }
-    public function setApplicationDir($applicationDir)
+    public function setAppDir($applicationDir)
     {
         $this->applicationDir = Z::realPath($applicationDir, true);
-        $this->setPrimaryApplicationDir($this->applicationDir);
+        $this->setPrimaryAppDir($this->applicationDir);
         return $this;
     }
-    public function setPrimaryApplicationDir($primaryApplicationDir = '')
+    public function setPrimaryAppDir($primaryApplicationDir = '')
     {
         if (empty($this->primaryApplicationDir)) {
             $this->primaryApplicationDir = Z::realPath($primaryApplicationDir ?: $this->applicationDir, true);
@@ -5908,8 +5903,8 @@ class Zls_Logger_Dispatcher
             $error = $exception->render();
         } else {
             $path = [
-                $config->getApplicationDir().$config->getViewsDirName().'/Error/'.$exception->getErrorCode().'.php',
-                $config->getPrimaryApplicationDir().$config->getViewsDirName().$exception->getErrorCode().'.php',
+                $config->getAppDir().$config->getViewsDirName().'/Error/'.$exception->getErrorCode().'.php',
+                $config->getPrimaryAppDir().$config->getViewsDirName().$exception->getErrorCode().'.php',
             ];
             if (file_exists($file = $path[0]) || file_exists($file = $path[1])) {
                 $error = Z::view()->loadRaw($file, [], true);
@@ -6012,10 +6007,6 @@ class Zls_Cache_File implements Zls_Cache
     {
         $cacheDirPath = empty($cacheDirPath) ? Z::config()->getStorageDirPath().'cache/' : $cacheDirPath;
         $this->_cacheDirPath = Z::realPath($cacheDirPath).'/';
-        if (!is_dir($this->_cacheDirPath)) {
-            mkdir($this->_cacheDirPath, 0700, true);
-        }
-        Z::throwIf(!is_writable($this->_cacheDirPath), 500, 'cache dir [ '.Z::safePath($this->_cacheDirPath).' ] not writable', 'ERROR');
     }
     public function clean()
     {
@@ -6101,10 +6092,7 @@ class Zls_Cache_File implements Zls_Cache
     {
         $cacheTime = (int)$cacheTime;
         return @serialize(
-            [
-                'userData' => $userData,
-                'expireTime' => (0 == $cacheTime ? 0 : time() + $cacheTime),
-            ]
+            ['userData' => $userData,'expireTime' => (0 == $cacheTime ? 0 : time() + $cacheTime),]
         );
     }
     public function &instance($key = null, $isRead = true)
