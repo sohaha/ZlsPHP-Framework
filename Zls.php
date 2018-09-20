@@ -5280,6 +5280,10 @@ class Zls_Config
     {
         return $this->getSysConfig($this->maintainIpWhitelist, 'ipWhitelist', []);
     }
+    public function getApplicationDir()
+    {
+        return $this->appDir;
+    }
     /**
      * @param array $maintainIpWhitelist
      * @return $this
