@@ -4428,6 +4428,8 @@ class Zls_Router_PathInfo extends Zls_Router
         if (!$action) {
             $route = z::config()->getRoute();
             $action = $route->getControllerShort().'/'.$route->getMethodShort();
+        }else{
+            $action= ltrim($action, '/');
         }
         $isPathinfo = null !== $config->getRequest()->getPathInfo();
         $MethodUriSubfix = $config->getMethodUriSubfix();
@@ -4457,7 +4459,7 @@ class Zls_Router_PathInfo extends Zls_Router
         if ($isPathinfo) {
             $url = $index.$action;
         } else {
-            $url = $root ? $index.'?s='.ltrim($action, '/') : '/'.$index.'?s='.$action;
+            $url = $root ? $index.'?s='.$action : '/'.$index.'?s='.$action;
         }
         $url = rtrim($url, '/');
         $url = $index ? $url : ($action ? $url : $url.'/');
