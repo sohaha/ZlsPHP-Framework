@@ -4425,7 +4425,7 @@ class Zls_Router_PathInfo extends Zls_Router
     public function url($action = '', $getData = [], $opt = ['subfix' => true, 'ishmvc' => false])
     {
         $config = Z::config();
-        if(!$action){
+        if (!$action) {
             $route = z::config()->getRoute();
             $action = $route->getControllerShort().'/'.$route->getMethodShort();
         }
@@ -4433,7 +4433,7 @@ class Zls_Router_PathInfo extends Zls_Router
         $MethodUriSubfix = $config->getMethodUriSubfix();
         $SubfixStatus = $isPathinfo ? Z::arrayGet($opt, 'subfix', false) : false;
         $isHmvc = Z::arrayGet($opt, 'ishmvc', false);
-        if (true === $SubfixStatus && !Z::strEndsWith($action, $MethodUriSubfix)) {
+        if (($action&&$action!=='/')&&true === $SubfixStatus && !Z::strEndsWith($action, $MethodUriSubfix)) {
             $action = $action.$MethodUriSubfix;
         }
         if (true === $isHmvc) {
@@ -4449,8 +4449,11 @@ class Zls_Router_PathInfo extends Zls_Router
         if ($hmvcModuleName && $config->hmvcIsDomainOnly($hmvcModuleName)) {
             $action = preg_replace('|^'.$hmvcModuleName.'/?|', '/', $action);
         }
-        $root = Z::strBeginsWith($action, '/');
-        $index = $config->getIsRewrite() ? '' : ($root ? '/'.ZLS_INDEX_NAME : ZLS_INDEX_NAME.'/');
+        $root = !Z::strBeginsWith($action, './');
+        if (!$root) {
+            $action = substr($action, 2);
+        }
+        $index = $config->getIsRewrite() ?($root ? '/':'') : ($root ? '/'.ZLS_INDEX_NAME : ZLS_INDEX_NAME.'/');
         if ($isPathinfo) {
             $url = $index.$action;
         } else {
@@ -5207,18 +5210,18 @@ class Zls_SeparationRouter extends Zls_Route
 class Zls_Config
 {
     private static $alias            = [];
-    private        $appDir           = '';
-    private        $primaryAppDir    = '';
-    private        $indexDir         = '';
-    private        $commands         = [];
-    private        $classesDirName   = 'classes';
-    private        $hmvcDirName      = 'hmvc';
-    private        $libraryDirName   = 'library';
-    private        $functionsDirName = 'functions';
-    private        $storageDirPath   = '';
-    private        $viewsDirName     = 'views';
-    private        $configDirName    = 'config';
-    private        $controllerDirName = 'Controller';
+    private $appDir           = '';
+    private $primaryAppDir    = '';
+    private $indexDir         = '';
+    private $commands         = [];
+    private $classesDirName   = 'classes';
+    private $hmvcDirName      = 'hmvc';
+    private $libraryDirName   = 'library';
+    private $functionsDirName = 'functions';
+    private $storageDirPath   = '';
+    private $viewsDirName     = 'views';
+    private $configDirName    = 'config';
+    private $controllerDirName = 'Controller';
     private $businessDirName            = 'Business';
     private $daoDirName                 = 'Dao';
     private $beanDirName                = 'Bean';
