@@ -6,7 +6,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.26
- * @updatetime    2018-09-20 11:40:11
+ * @updatetime    2018-09-21 11:40:11
  */
 define('IN_ZLS', '2.1.26');
 define('ZLS_CORE_PATH', __FILE__);
@@ -4425,6 +4425,10 @@ class Zls_Router_PathInfo extends Zls_Router
     public function url($action = '', $getData = [], $opt = ['subfix' => true, 'ishmvc' => false])
     {
         $config = Z::config();
+        if(!$action){
+            $route = z::config()->getRoute();
+            $action = $route->getControllerShort().'/'.$route->getMethodShort();
+        }
         $isPathinfo = null !== $config->getRequest()->getPathInfo();
         $MethodUriSubfix = $config->getMethodUriSubfix();
         $SubfixStatus = $isPathinfo ? Z::arrayGet($opt, 'subfix', false) : false;
