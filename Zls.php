@@ -6,7 +6,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.26
- * @updatetime    2018-09-21 11:40:11
+ * @updatetime    2018-09-23 20:25:30
  */
 define('IN_ZLS', '2.1.26');
 define('ZLS_CORE_PATH', __FILE__);
@@ -4428,7 +4428,7 @@ class Zls_Router_PathInfo extends Zls_Router
         if (!$action) {
             $route = z::config()->getRoute();
             $action = $route->getControllerShort().'/'.$route->getMethodShort();
-        }else{
+        } else {
             $action= ltrim($action, '/');
         }
         $isPathinfo = null !== $config->getRequest()->getPathInfo();
@@ -4445,7 +4445,9 @@ class Zls_Router_PathInfo extends Zls_Router
                 $config->getRoute()->getHmvcModuleName(),
                 null
             ) ? $config->getRoute()->getHmvcModuleName() : '';
-            $action = $hmvcDirName.'/'.$action;
+            if ($hmvcDirName) {
+                $action = $hmvcDirName.'/'.$action;
+            }
         }
         $hmvcModuleName = $config->getCurrentDomainHmvcModuleNname();
         if ($hmvcModuleName && $config->hmvcIsDomainOnly($hmvcModuleName)) {
@@ -5179,6 +5181,7 @@ class Zls_SeparationRouter extends Zls_Route
  * @method Zls_Config                         setLogsSubDirNameFormat($e)
  * @method Zls_Config                         setCommands($e)
  * @method Zls_Config                         setHmvcDirName($e)
+ * @method Zls_Config                         setLogsMaxDay($e)
  * @method string                       getBeanDirName()
  * @method string                       getExceptionMemoryReserveSize()
  * @method string                       getExceptionLevel()
