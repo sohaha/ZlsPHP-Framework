@@ -2777,8 +2777,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
                 if ((bool)$orderBy) {
                     $orderBy = $orderBy.' OFFSET '.$limit.' ROWS FETCH NEXT '.$offset.'  ROWS ONLY ';
                 } else {
-                    $key = $this->getPrimaryKey();
-                    $primaryKey = $key ?: $this->execute('EXEC sp_pkeys @table_name=\''.trim(strtr($from, ['[' => '', ']' => ''])).'\'')->value('COLUMN_NAME');
+                    $primaryKey = $this->getPrimaryKey();
                     $orderBy = "\n".' ORDER BY '.$primaryKey.' ASC';
                     if ($limit > 0) {
                         $originVal = $this->_values;
@@ -2932,7 +2931,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
         if (!$this->primaryKey) {
             $primaryKey = '';
             if ($this->_isSqlsrv()) {
-                $primaryKey = $this->execute('EXEC sp_pkeys @table_name=\''.trim(strtr($this->_getFrom(), ['[' => '', ']' => ''])).'\'')->value('COLUMN_NAME');
+                $primaryKey = $this->execute('EXEC sp_pkeys @table_name=\''.trim(strtr(Z::arrayGet($this->arFrom,0,$this->_getFrom()), ['[' => '', ']' => ''])).'\'')->value('COLUMN_NAME');
             } else {
                 $sql = 'SHOW FULL COLUMNS FROM '.trim(strtr($this->_getFrom(), ['`' => '']));
                 $result = $this->execute($sql)->rows();
