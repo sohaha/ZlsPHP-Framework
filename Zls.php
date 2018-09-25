@@ -2944,7 +2944,6 @@ class Zls_Database_ActiveRecord extends Zls_Database
                 }
             }
             $this->primaryKey = $primaryKey;
-            $db->close();
         }
         return $this->primaryKey;
     }
