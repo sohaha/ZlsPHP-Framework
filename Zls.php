@@ -2930,11 +2930,12 @@ class Zls_Database_ActiveRecord extends Zls_Database
     {
         if (!$this->primaryKey) {
             $primaryKey = '';
+            $db = clone $this;
             if ($this->_isSqlsrv()) {
-                $primaryKey = $this->execute('EXEC sp_pkeys @table_name=\''.trim(strtr(Z::arrayGet($this->arFrom,0,$this->_getFrom()), ['[' => '', ']' => ''])).'\'')->value('COLUMN_NAME');
-            } else {
+                $primaryKey = $db->execute('EXEC sp_pkeys @table_name=\''.trim(strtr(Z::arrayGet($this->arFrom,0,$this->_getFrom()), ['[' => '', ']' => ''])).'\'')->value('COLUMN_NAME');
+            } elseif($this->_isMysql()) {
                 $sql = 'SHOW FULL COLUMNS FROM '.trim(strtr($this->_getFrom(), ['`' => '']));
-                $result = $this->execute($sql)->rows();
+                $result = $db->execute($sql)->rows();
                 foreach ($result as $val) {
                     if ('pri' == strtolower($val['Key'])) {
                         $primaryKey = $val['Field'];
@@ -2943,6 +2944,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
                 }
             }
             $this->primaryKey = $primaryKey;
+            $db->close();
         }
         return $this->primaryKey;
     }
