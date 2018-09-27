@@ -6,7 +6,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.26
- * @updatetime    2018-09-23 20:25:30
+ * @updatetime    2018-09-27 19:20:50
  */
 define('IN_ZLS', '2.1.26');
 define('ZLS_CORE_PATH', __FILE__);
@@ -1296,13 +1296,19 @@ class z
     public static function sessionUnset($key = null)
     {
         $id = self::sessionStart();
-        if (is_null($key)) {
-            session_unset();
+        $isSwoole = self::isSwoole(true) && ($sessionHandle = self::config()->getSessionHandle());
+        $isNull = is_null($key);
+        if ($isNull) {
+            if (!$isSwoole) {
+                session_unset();
+            } else {
+                $sessionHandle->swooleDestroy($id);
+            }
         } else {
-            self::arraySet($_SESSION, $key, null);
-        }
-        if (self::isSwoole(true) && ($sessionHandle = self::config()->getSessionHandle())) {
-            $sessionHandle->swooleDestroy($id);
+            unset($_SESSION[$key]);
+            if ($isSwoole) {
+                $sessionHandle->swooleWrite($id, $_SESSION);
+            }
         }
     }
     /**
@@ -2186,11 +2192,7 @@ class Zls
         @ini_set('session.hash_function', 1);
         @ini_set('session.hash_bits_per_character', 5);
         session_cache_limiter('nocache');
-        session_set_cookie_params(
-            $sessionConfig['lifetime'],
-            $sessionConfig['cookie_path'],
-            preg_match('/^[^\\.]+$/', Z::server('HTTP_HOST')) ? null : $sessionConfig['cookie_domain']
-        );
+        session_set_cookie_params( $sessionConfig['lifetime'],$sessionConfig['cookie_path'],preg_match('/^[^\\.]+$/', Z::server('HTTP_HOST')) ? null : $sessionConfig['cookie_domain']);
         if (!empty($sessionConfig['session_save_path'])) {
             session_save_path($sessionConfig['session_save_path']);
         }
@@ -2932,8 +2934,8 @@ class Zls_Database_ActiveRecord extends Zls_Database
             $primaryKey = '';
             $db = clone $this;
             if ($this->_isSqlsrv()) {
-                $primaryKey = $db->execute('EXEC sp_pkeys @table_name=\''.trim(strtr(Z::arrayGet($this->arFrom,0,$this->_getFrom()), ['[' => '', ']' => ''])).'\'')->value('COLUMN_NAME');
-            } elseif($this->_isMysql()) {
+                $primaryKey = $db->execute('EXEC sp_pkeys @table_name=\''.trim(strtr(Z::arrayGet($this->arFrom, 0, $this->_getFrom()), ['[' => '', ']' => ''])).'\'')->value('COLUMN_NAME');
+            } elseif ($this->_isMysql()) {
                 $sql = 'SHOW FULL COLUMNS FROM '.trim(strtr($this->_getFrom(), ['`' => '']));
                 $result = $db->execute($sql)->rows();
                 foreach ($result as $val) {
@@ -4778,25 +4780,26 @@ abstract class Zls_Session implements \SessionHandlerInterface
      * Zls_Session constructor
      * @param $configFileName
      */
-    public function __construct($configFileName)
+    public function __construct($configFileName = '')
     {
         if (is_array($configFileName)) {
             $this->config = $configFileName;
-        } else {
+        } elseif ($configFileName) {
             $this->config = Z::config($configFileName);
         }
     }
-    abstract public function init();
-    abstract public function swooleInit($sessionId);
-    abstract public function swooleWrite($sessionId, $sessionData);
-    abstract public function swooleRead($sessionId);
-    abstract public function swooleDestroy($sessionId);
+    abstract public function init($id);
+    abstract public function swooleInit($id);
+    abstract public function swooleWrite($id, $data);
+    abstract public function swooleRead($id);
+    abstract public function swooleDestroy($id);
     abstract public function swooleGc($maxlifetime);
-    //
-    //
-    //
-    //
-    //
+    abstract public function open($path, $name);
+    abstract public function close();
+    abstract public function read($key);
+    abstract public function write($key, $val);
+    abstract public function destroy($key);
+    abstract public function gc($maxlifetime);
 }
 class Zls_Exception_404 extends Zls_Exception
 {
@@ -5277,7 +5280,7 @@ class Zls_Config
     private $traceStatusCallBack        = null;
     private $hmvcDomains                = ['enable' => false, 'domains' => []];
     private $clientIpConditions
-                                               = [
+        = [
             'source' => ['REMOTE_ADDR', 'HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP'],
             'check' => ['HTTP_X_FORWARDED_FOR'],
         ];
