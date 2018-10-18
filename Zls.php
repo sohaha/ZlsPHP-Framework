@@ -6,7 +6,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.26
- * @updatetime    2018-10-17 15:42:32
+ * @updatetime    2018-10-18 18:49:58
  */
 define('IN_ZLS', '2.1.26');
 define('ZLS_CORE_PATH', __FILE__);
@@ -3860,7 +3860,10 @@ abstract class Zls_Database
                             } elseif ($this->_isSqlsrv()) {
                                 $dsn = 'sqlsrv:Server='.$config['hostname'].','.$config['port'].';Database='.$this->getDatabase().';MultipleActiveResultSets=false';
                                 unset($options[PDO::ATTR_PERSISTENT], $options[PDO::ATTR_EMULATE_PREPARES]);
-                                $options = $options + [1001 => $this->getTimeout(), 1005 => true];
+                                $options = $options + [1001 => $this->getTimeout()];
+                                if(property_exists('PDO', 'SQLSRV_ATTR_FETCHES_NUMERIC_TYPE')){
+                                    $options[PDO::SQLSRV_ATTR_FETCHES_NUMERIC_TYPE] = true;
+                                }
                                 $connections[$key] = new \Zls_PDO($dsn, $config['username'], $config['password'], $options);
                                 $connections[$key]->setAttribute(PDO::ATTR_STRINGIFY_FETCHES, false);
                             } elseif ($this->_isSqlite()) {
