@@ -5,8 +5,8 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.1.26
- * @updatetime    2018-10-18 18:49:58
+ * @since         v2.1.27
+ * @updatetime    2018-11-13 18:09:14
  */
 define('IN_ZLS', '2.1.26');
 define('ZLS_CORE_PATH', __FILE__);
@@ -5086,7 +5086,7 @@ class Zls_Route
     }
     public function getControllerShort()
     {
-        return preg_replace('/^'.Z::config()->getControllerDirName().'_/', '', $this->getController());
+        return str_replace('_', '/', preg_replace('/^'.Z::config()->getControllerDirName().'_/', '', $this->getController()));
     }
     public function getController()
     {
