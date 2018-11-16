@@ -6,9 +6,9 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.27
- * @updatetime    2018-11-13 18:09:14
+ * @updatetime    2018-11-16 15:43:37
  */
-define('IN_ZLS', '2.1.26');
+define('IN_ZLS', '2.1.27');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd().'/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
@@ -592,7 +592,7 @@ class z
         $phpPath = $phpPath ?: self::phpPath();
         $argc = '';
         foreach ($args as $key => $value) {
-            $argc .= " --{$key}=$value";
+            $argc .= " -{$key} $value";
         }
         $index = ZLS_PATH.'/'.ZLS_INDEX_NAME;
         if (!self::isWin() && (!$user && '' !== $user)) {
@@ -2361,13 +2361,23 @@ class Zls
                     Z::cache()->set($cacheMethoKey, $contents, $cacheMethodConfig[$methodKey]['time']);
                 }
             } else {
+                $run = function() use ($controllerObject,$method,$route,$_method, $_controllerShort, $_args, $_controller){
+                    if(method_exists($controllerObject, 'execute')){
+                        $response = $controllerObject->execute(function () use ($controllerObject,$method,$route){
+                            return  call_user_func_array([$controllerObject, $method], $route->getArgs());
+                        },$_method, $_controllerShort, $_args, $_controller);
+                    }else{
+                        $response = call_user_func_array([$controllerObject, $method], $route->getArgs());
+                    }
+                    return $response;
+                };
                 if (method_exists($controllerObject, 'after')) {
                     @ob_start();
-                    $response = call_user_func_array([$controllerObject, $method], $route->getArgs());
+                    $response = $run();
                     $contents = @ob_get_clean();
                     $contents .= is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
                 } else {
-                    $response = call_user_func_array([$controllerObject, $method], $route->getArgs());
+                    $response = $run();
                     $contents = is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
                 }
             }
@@ -4338,8 +4348,9 @@ abstract class Zls_Database
 }
 /**
  * Class Zls_Controller.
- * @method before($method, $controllerShort, $controller, $args) before($method, $controllerShort, $controller, $args)
- * @method after($method, $args, $contents) after($method, $args, $contents)
+ * @method void before($method, $controllerShort, $controller, $args)
+ * @method string after($method, $args, $contents)
+ * @method string execute($next,$method, $controllerShort, $args, $controller)
  */
 abstract class Zls_Controller
 {
