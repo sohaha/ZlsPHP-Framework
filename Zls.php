@@ -6,7 +6,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.27
- * @updatetime    2018-11-16 15:43:37
+ * @updatetime    2018-11-20 17:25:22
  */
 define('IN_ZLS', '2.1.27');
 define('ZLS_CORE_PATH', __FILE__);
@@ -282,10 +282,6 @@ class z
     {
         static $di;
         $uuid = self::swooleUuid();
-        if (11===$remove) {
-            z::dump(array_keys($di));
-            return 3;
-        }
         $isset = isset($di[$uuid]);
         if (!$remove) {
             if (!$isset) {
@@ -836,34 +832,82 @@ class z
     }
     /**
      * 实例控制器
-     * @param       $_controllerShort
-     * @param null  $methodName
-     * @param array $args
-     * @param null  $hmvcModuleName
-     * @param bool  $before
-     * @param bool  $after
+     * @param string|object $controller
+     * @param null          $method
+     * @param array         $args
+     * @param null          $hmvcModuleName
+     * @param bool          $before
+     * @param bool          $after
+     * @param bool          $call
      * @return object
      */
-    public static function controller($_controllerShort, $methodName = null, $args = [], $hmvcModuleName = null, $before = false, $after = false)
+    public static function controller($controller, $method = null, $args = [], $hmvcModuleName = null, $before = false, $after = false,$call = false)
     {
         if ((bool)$hmvcModuleName) {
             Zls::checkHmvc($hmvcModuleName);
         }
-        $controllerName = Zls::getConfig()->getControllerDirName().'_'.$_controllerShort;
-        $controllerObject = self::factory($controllerName, true);
-        Z::throwIf(!($controllerObject instanceof Zls_Controller), 500, '[ '.$controllerName.' ] not a valid Zls_Controller', 'ERROR');
-        if ($methodName) {
-            $_method = Zls::getConfig()->getMethodPrefix().$methodName;
+        if(is_string($controller)){
+            $class = z::strBeginsWith($controller, '\\')?$controller:Zls::getConfig()->getControllerDirName().'_'.$controller;
+            $controllerObject = self::factory($class, true);
+        }else{
+            $controllerObject = $controller;
+            $class = get_class($controllerObject);
+        }
+        $config = self::config();
+        $controllerShort=  str_replace([$config->getControllerDirName().'\\',$config->getControllerDirName().'_'], '', $class);
+        Z::throwIf(!($controllerObject instanceof Zls_Controller), 500, '[ '.$class.' ] not a valid Zls_Controller', 'ERROR');
+        if ($method) {
+            $methodFull = $config->getMethodPrefix().$method;
             if ($before) {
                 if (method_exists($controllerObject, 'before')) {
-                    $controllerObject->before($methodName, $_controllerShort, $args, $controllerName);
+                    $controllerObject->before($method, $controllerShort, $args, $class);
                 }
             }
-            Z::throwIf(!method_exists($controllerObject, $_method), 404, 'Method [ '.$controllerName.'->'.$_method.'() ] not found');
-            $contents = $controllerObject->$_method($args);
+            if (!method_exists($controllerObject, $methodFull)) {
+                $containCall = $call && method_exists($controllerObject, 'call');
+                Z::throwIf(!$containCall, 404, 'Method [ '.$class.'->'.$methodFull.'() ] not found');
+                Z::end($controllerObject->call($method, $controllerShort, $args, $class));
+            }
+            $cacheClassName = &$controllerShort;
+            $cacheMethodName = &$method;
+            $methodKey = $cacheClassName.':'.$cacheMethodName;
+            $cacheMethodConfig = $config->getMethodCacheConfig();
+            if (!empty($cacheMethodConfig)
+                && Z::arrayKeyExists( $methodKey,$cacheMethodConfig)
+                && $cacheMethodConfig[$methodKey]['cache']
+                && ($cacheMethoKey = $cacheMethodConfig[$methodKey]['key']())
+            ) {
+                if (!($contents = Z::cache()->get($cacheMethoKey))) {
+                    @ob_start();
+                    $response = call_user_func_array([$controllerObject, $methodFull], $args);
+                    $contents = @ob_get_clean();
+                    $contents .= is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
+                    Z::cache()->set($cacheMethoKey, $contents, $cacheMethodConfig[$methodKey]['time']);
+                }
+            } else {
+                $run = function() use ($controllerObject,$methodFull,$method, $controllerShort, $args, $class){
+                    if(method_exists($controllerObject, 'execute')){
+                        $response = $controllerObject->execute(function () use ($controllerObject,$methodFull,$args){
+                            return call_user_func_array([$controllerObject, $methodFull],$args);
+                        },$method, $controllerShort, $args, $class);
+                    }else{
+                        $response = call_user_func_array([$controllerObject, $methodFull], $args);
+                    }
+                    return $response;
+                };
+                if (method_exists($controllerObject, 'after')) {
+                    @ob_start();
+                    $response = $run();
+                    $contents = @ob_get_clean();
+                    $contents .= is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
+                } else {
+                    $response = $run();
+                    $contents = is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
+                }
+            }
             if ($after) {
                 if (method_exists($controllerObject, 'after')) {
-                    $contents = $controllerObject->after($contents, $methodName, $_controllerShort, $args, $controllerName);
+                    $contents = $controllerObject->after($contents, $methodFull, $controller, $args, $class);
                 }
             }
             return $contents;
@@ -2304,9 +2348,6 @@ class Zls
         $config->setRoute($_route);
         $contents = !$_apiDoc ? $config->getSeparationRouter($config->getRoute()->getController(), $config->getRoute()->getHmvcModuleName()) : null;
         if (!$contents) {
-            Z::throwIf(!Z::classIsExists($class), 404, 'Controller [ '.$class.' ] not found');
-            $controllerObject = Z::factory($class);
-            Z::throwIf(!($controllerObject instanceof Zls_Controller), 404, '[ '.$class.' ] not a valid Zls_Controller');
             if ((bool)$_apiDoc) {
                 /**
                  * @var \Zls\Action\ApiDoc
@@ -2329,61 +2370,12 @@ class Zls
                 }
                 return false;
             }
+            $controllerObject = Z::factory($class);
             $_method = str_replace($config->getMethodPrefix(), '', $method);
             $_controllerShort = preg_replace('/^'.$config->getControllerDirName().'_/', '', $class);
             $_controller = $_route->getController();
             $_args = $_route->getArgs();
-            if (method_exists($controllerObject, 'before')) {
-                $controllerObject->before($_method, $_controllerShort, $_args, $_controller);
-            }
-            if (!method_exists($controllerObject, $method)) {
-                $containCall = method_exists($controllerObject, 'call');
-                Z::throwIf(!$containCall, 404, 'Method [ '.$class.'->'.$method.'() ] not found');
-                Z::end($controllerObject->call($_method, $_controllerShort, $_args, $_controller));
-            }
-            $cacheClassName = preg_replace('/^'.Z::config()->getControllerDirName().'_/', '', $class);
-            $cacheMethodName = preg_replace('/^'.Z::config()->getMethodPrefix().'/', '', $method);
-            $methodKey = $cacheClassName.':'.$cacheMethodName;
-            $cacheMethodConfig = $config->getMethodCacheConfig();
-            if (!empty($cacheMethodConfig)
-                && Z::arrayKeyExists(
-                    $methodKey,
-                    $cacheMethodConfig
-                )
-                && $cacheMethodConfig[$methodKey]['cache']
-                && ($cacheMethoKey = $cacheMethodConfig[$methodKey]['key']())
-            ) {
-                if (!($contents = Z::cache()->get($cacheMethoKey))) {
-                    @ob_start();
-                    $response = call_user_func_array([$controllerObject, $method], $route->getArgs());
-                    $contents = @ob_get_clean();
-                    $contents .= is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
-                    Z::cache()->set($cacheMethoKey, $contents, $cacheMethodConfig[$methodKey]['time']);
-                }
-            } else {
-                $run = function() use ($controllerObject,$method,$route,$_method, $_controllerShort, $_args, $_controller){
-                    if(method_exists($controllerObject, 'execute')){
-                        $response = $controllerObject->execute(function () use ($controllerObject,$method,$route){
-                            return  call_user_func_array([$controllerObject, $method], $route->getArgs());
-                        },$_method, $_controllerShort, $_args, $_controller);
-                    }else{
-                        $response = call_user_func_array([$controllerObject, $method], $route->getArgs());
-                    }
-                    return $response;
-                };
-                if (method_exists($controllerObject, 'after')) {
-                    @ob_start();
-                    $response = $run();
-                    $contents = @ob_get_clean();
-                    $contents .= is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
-                } else {
-                    $response = $run();
-                    $contents = is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
-                }
-            }
-            if (method_exists($controllerObject, 'after')) {
-                $contents = $controllerObject->after($contents, $_method, $_controllerShort, $_args, $_controller);
-            }
+            $contents =  Z::controller($controllerObject,$_method,$_args,null,true,true,true);
         }
         if (!$result) {
             echo $contents;
@@ -4350,6 +4342,7 @@ abstract class Zls_Database
  * Class Zls_Controller.
  * @method void before($method, $controllerShort, $controller, $args)
  * @method string after($method, $args, $contents)
+ * @method string call($method, $controllerShort, $args, $controller)
  * @method string execute($next,$method, $controllerShort, $args, $controller)
  */
 abstract class Zls_Controller
