@@ -6,7 +6,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.27
- * @updatetime    2018-11-20 17:25:22
+ * @updatetime    2018-11-23 18:15:57
  */
 define('IN_ZLS', '2.1.27');
 define('ZLS_CORE_PATH', __FILE__);
@@ -2731,9 +2731,10 @@ class Zls_Database_ActiveRecord extends Zls_Database
      * 查询表
      * @param string|array|Closure $from
      * @param string               $as 别名
+     * @param bool                 $wrap
      * @return $this
      */
-    public function from($from, $as = '')
+    public function from($from, $as = '', $wrap = true)
     {
         if (is_array($from)) {
             $as = current($from);
@@ -2753,7 +2754,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
                 $as = '_tmp'.md5($from);
             }
         }
-        $this->arFrom = [$from, $as];
+        $this->arFrom = [$from, $as,$wrap];
         if ($as) {
             $this->_asTable[$as] = 1;
         }
@@ -2914,9 +2915,9 @@ class Zls_Database_ActiveRecord extends Zls_Database
         }
         return implode(' , ', $groupBy);
     }
-    private function _protectIdentifier($str)
+    private function _protectIdentifier($str,$wrap = true)
     {
-        if (stripos($str, '(') || stripos($str, ')') || '*' == trim($str)) {
+        if (!$wrap || stripos($str, '(') || stripos($str, ')') || '*' == trim($str)) {
             return $str;
         }
         $_str = explode(' ', $str);
@@ -3371,13 +3372,13 @@ class Zls_Database_ActiveRecord extends Zls_Database
         }
         return ' '.$leftWrap.' '.implode(' AND ', $_where).$rightWrap.' ';
     }
-    private function _compileFrom($from, $as = '')
+    private function _compileFrom($from, $as = '',$wrap = true)
     {
         if ($as) {
             $this->_asTable[$as] = 1;
             $as = ' AS '.$this->_protectIdentifier($as).' ';
         }
-        return $this->_protectIdentifier($this->_checkPrefix($from)).$as;
+        return $this->_protectIdentifier($this->_checkPrefix($from),$wrap).$as;
     }
     private function _compileJoin($table, $on, $type = '')
     {
