@@ -606,16 +606,22 @@ class z
     {
         static $phpPath;
         if (!$phpPath) {
-            if ('win' == substr(strtolower(PHP_OS), 0, 3)) {
-                $path = z::arrayGet(ini_get_all(), 'extension_dir.local_value', 'php');
-                $phpPath = str_replace('\\', '/', $path);
-                $phpPath = str_replace(['/ext/', '/ext'], ['/', '/'], $phpPath);
-                $realPath = $phpPath.'php.exe';
+            if (strpos(strtolower(PHP_OS), 'win')!==false) {
+                if($path = z::arrayGet(ini_get_all(), 'extension_dir.local_value', '')){
+                    $phpPath = str_replace('\\', '/', $path);
+                    $phpPath = str_replace('/ext', '/', $phpPath);
+                    $realPath = $phpPath.'php.exe';
+                }else{
+                    $realPath = 'php.exe';
+                }
             } else {
                 $realPath = PHP_BINDIR.'/php';
             }
             if (false !== strpos($realPath, 'ephp.exe')) {
                 $realPath = str_replace('ephp.exe', 'php.exe', $realPath);
+            }
+            if(!is_file($realPath)){
+                $realPath = 'php';
             }
             $phpPath = $realPath;
         }
@@ -6008,10 +6014,13 @@ class Zls_Logger_Dispatcher
      */
     final public function handleError($code, $message, $file, $line)
     {
-        if (0 == error_reporting()) {
-            return;
+        if (0 !== error_reporting()) {
+            $throw = in_array($code, [E_WARNING],true);
+            $exception = new \Zls_Exception_500($message, $code, 'General Error', $file, $line);
+            Z::throwIf($throw,$exception, $message,$code);
+            $this->dispatch($exception);
         }
-        $this->dispatch(new \Zls_Exception_500($message, $code, 'General Error', $file, $line));
+        return;
     }
     final public function handleFatal()
     {
