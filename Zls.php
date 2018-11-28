@@ -6,16 +6,16 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.27
- * @updatetime    2018-11-23 18:15:57
+ * @updatetime    2018-11-28 13:54:12
  */
 define('IN_ZLS', '2.1.27');
 define('ZLS_CORE_PATH', __FILE__);
-defined('ZLS_PATH') || define('ZLS_PATH', getcwd().'/');
+defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
 defined('ZLS_RUN_MODE_CLI') || define('ZLS_RUN_MODE_CLI', true);
-defined('ZLS_APP_PATH') || define('ZLS_APP_PATH', Z::realPath(ZLS_PATH.'app', true));
+defined('ZLS_APP_PATH') || define('ZLS_APP_PATH', Z::realPath(ZLS_PATH . 'app', true));
 defined('ZLS_INDEX_NAME') || define('ZLS_INDEX_NAME', pathinfo(__FILE__, PATHINFO_BASENAME));
-defined('ZLS_PACKAGES_PATH') || define('ZLS_PACKAGES_PATH', ZLS_APP_PATH.'packages/');
+defined('ZLS_PACKAGES_PATH') || define('ZLS_PACKAGES_PATH', ZLS_APP_PATH . 'packages/');
 interface Zls_Logger
 {
     public function write(\Zls_Exception $exception);
@@ -99,14 +99,14 @@ class z
         if (z::strBeginsWith(strtolower($path), 'phar://')) {
             return $path;
         }
-        $unipath = PATH_SEPARATOR == ':';
+        $unipath   = PATH_SEPARATOR == ':';
         $separator = DIRECTORY_SEPARATOR;
-        $prefix = realpath((false === $entr) ? (ZLS_PATH.'../') : (true !== $entr ? $entr : ZLS_PATH));
+        $prefix = realpath((false === $entr) ? (ZLS_PATH . '../') : (true !== $entr ? $entr : ZLS_PATH));
         if (false === strpos($path, ':') && strlen($path) && '/' != $path[0]) {
-            $path = $prefix.$separator.$path;
+            $path = $prefix . $separator . $path;
         }
-        $path = str_replace(['/', '\\'], $separator, $path);
-        $parts = array_filter(explode($separator, $path), 'strlen');
+        $path      = str_replace(['/', '\\'], $separator, $path);
+        $parts     = array_filter(explode($separator, $path), 'strlen');
         $absolutes = [];
         foreach ($parts as $part) {
             if ('.' == $part) {
@@ -119,9 +119,9 @@ class z
             }
         }
         $path = implode($separator, $absolutes);
-        $path = $unipath ? (strlen($path) && '/' != $path[0] ? '/'.$path : $path) : $path;
+        $path = $unipath ? (strlen($path) && '/' != $path[0] ? '/' . $path : $path) : $path;
         $path = str_replace(['/', '\\'], '/', $path);
-        return $path.($addSlash ? '/' : '');
+        return $path . ($addSlash ? '/' : '');
     }
     /**
      * 验证字符串开头
@@ -172,7 +172,7 @@ class z
         if (empty($configName)) {
             return Zls::getConfig();
         }
-        $_info = explode('.', $configName);
+        $_info          = explode('.', $configName);
         $configFileName = current($_info);
         static $loadedConfig = [];
         $cfg = null;
@@ -181,7 +181,7 @@ class z
         } elseif ($filePath = Zls::getConfig()->find($configFileName)) {
             $loadedConfig[$configFileName] = $cfg = include $filePath;
         } else {
-            Z::throwIf(true, 500, 'config file [ '.$configFileName.'.php ] not found', 'ERROR');
+            Z::throwIf(true, 500, 'config file [ ' . $configFileName . '.php ] not found', 'ERROR');
         }
         if ($cfg && count($_info) > 1) {
             $val = self::arrayGet($cfg, implode('.', array_slice($_info, 1)), $default);
@@ -227,9 +227,9 @@ class z
         if ($boolean) {
             if (is_string($exception) || is_numeric($exception)) {
                 $_exception = ucfirst($exception);
-                $code = is_numeric($exception) ? $exception : 500;
+                $code       = is_numeric($exception) ? $exception : 500;
                 if (in_array($_exception, [500, 404, 'Database'])) {
-                    $exception = 'Zls_Exception_'.$_exception;
+                    $exception = 'Zls_Exception_' . $_exception;
                 }
                 if (self::strBeginsWith($exception, 'Zls_Exception_')) {
                     $trace = self::arrayGet(debug_backtrace(false), 0, ['file' => '', 'line' => 0]);
@@ -256,11 +256,11 @@ class z
         if (is_array($keys)) {
             $key = array_shift($keys);
         } else {
-            $key = $keys;
+            $key  = $keys;
             $keys = null;
         }
         $_keys = $explode ? explode('.', $key) : [$key];
-        $a = $arr;
+        $a     = $arr;
         while (0 != count($_keys)) {
             $key = array_shift($_keys);
             if (!isset($a[$key])) {
@@ -286,7 +286,7 @@ class z
         if (!$remove) {
             if (!$isset) {
                 $di[$uuid] = new \Zls_Di();
-                if ($uuid!=='0') {
+                if ($uuid !== '0') {
                     $di[$uuid]->merge($di['0']);
                 }
             }
@@ -299,7 +299,7 @@ class z
     }
     public static function swooleUuid($prefix = '')
     {
-        return $prefix.((z::isSwoole())? z::swoole()->worker_id . '_' . \Swoole\Coroutine::getuid():'0');
+        return $prefix . ((z::isSwoole()) ? z::swoole()->worker_id . '_' . \Swoole\Coroutine::getuid() : '0');
     }
     public static function wasteTime($time = null)
     {
@@ -390,26 +390,14 @@ class z
         $trace = new \Zls_Trace();
         if ((bool)$type) {
             if ($debug) {
-                $debug = self::debug(null, false, true, false);
-                $current = self::arrayGet(debug_backtrace(), 0, ['file' => '', 'line' => '']);
+                $debug         = self::debug(null, false, true, false);
+                $current       = self::arrayGet(debug_backtrace(), 0, ['file' => '', 'line' => '']);
                 $debug['file'] = $current['file'] ? self::safePath($current['file']) : null;
                 $debug['line'] = $current['line'];
             }
             $trace->output($log, $type, $debug);
         }
         return $trace;
-    }
-    private static function _debug($data = null)
-    {
-        if (!self::di()->has('debug')) {
-            $data = [[],[]];
-        } elseif (is_null($data)) {
-            return  self::di()->make('debug');
-        }
-        self::di()->bind('debug', function () use ($data) {
-            return $data;
-        });
-        return true;
     }
     /**
      * 获取执行时间与内存
@@ -425,30 +413,42 @@ class z
     {
         list($_run, $_mem) = self::_debug();
         $toStr = function ($res) use ($name, $resString) {
-            return $res?($resString ? vsprintf($name.'[runtime:%s,memory:%s', [$res['runtime'], $res['memory'].']']) : $res):true;
+            return $res ? ($resString ? vsprintf($name . '[runtime:%s,memory:%s', [$res['runtime'], $res['memory'] . ']']) : $res) : true;
         };
         if ($name) {
             if ($output) {
                 $runTime = self::microtime() - $_run[$name];
-                $res = ['runtime' => $runTime / 1000 .($suffix ? 's' : ''), 'memory' => self::convertRam(memory_get_usage() - $_mem[$name], $suffix)];
+                $res     = ['runtime' => $runTime / 1000 . ($suffix ? 's' : ''), 'memory' => self::convertRam(memory_get_usage() - $_mem[$name], $suffix)];
                 if ($unset) {
                     unset($_run[$name], $_mem[$name]);
                 }
             } else {
                 $_run[$name] = self::microtime();
                 $_mem[$name] = memory_get_usage();
-                $res = null;
+                $res         = null;
             }
-            self::_debug([$_run,$_mem]);
+            self::_debug([$_run, $_mem]);
         } else {
             $runTime = ceil(Zls::$zlsTime) !== Zls::$zlsTime ? Zls::$zlsTime * 1000 : Zls::$zlsTime;
             $runTime = self::microtime() - $runTime;
             if (substr_count($runTime, 'E')) {
                 $runTime = floatval(substr($runTime, 5));
             }
-            $res = ['runtime' => ($runTime / 1000).($suffix ? 's' : ''), 'memory' => (Zls::$zlsMemory ? self::convertRam(memory_get_usage() - Zls::$zlsMemory, $suffix) : 'null')];
+            $res = ['runtime' => ($runTime / 1000) . ($suffix ? 's' : ''), 'memory' => (Zls::$zlsMemory ? self::convertRam(memory_get_usage() - Zls::$zlsMemory, $suffix) : 'null')];
         }
         return $toStr($res);
+    }
+    private static function _debug($data = null)
+    {
+        if (!self::di()->has('debug')) {
+            $data = [[], []];
+        } elseif (is_null($data)) {
+            return self::di()->make('debug');
+        }
+        self::di()->bind('debug', function () use ($data) {
+            return $data;
+        });
+        return true;
     }
     /**
      * 计算内存消耗
@@ -465,8 +465,8 @@ class z
             return 0;
         }
         $unit = ['b', 'kb', 'mb', 'gb', 'tb', 'pb'];
-        $i = floor(log($size, 1024));
-        return @round($size / pow(1024, $i), 2).$unit[$i];
+        $i    = floor(log($size, 1024));
+        return @round($size / pow(1024, $i), 2) . $unit[$i];
     }
     /**
      * 屏蔽路径中系统的绝对路径部分，转换为安全的用于显示
@@ -480,13 +480,13 @@ class z
         if (!$path) {
             return '';
         }
-        $path = self::realPath($path);
+        $path     = self::realPath($path);
         $siteRoot = self::realPath(self::server('DOCUMENT_ROOT'));
-        $_path = str_replace($siteRoot, '', $path);
-        $entr = true === $entr? ZLS_PATH: (false === $entr? self::realPath(ZLS_APP_PATH.'..', true) : $entr);
-        $entr = self::realPath($entr);
-        $relPath = str_replace($siteRoot, '', rtrim($entr, '/'));
-        return $prefix.str_replace($relPath, '', $_path);
+        $_path    = str_replace($siteRoot, '', $path);
+        $entr     = true === $entr ? ZLS_PATH : (false === $entr ? self::realPath(ZLS_APP_PATH . '..', true) : $entr);
+        $entr     = self::realPath($entr);
+        $relPath  = str_replace($siteRoot, '', rtrim($entr, '/'));
+        return $prefix . str_replace($relPath, '', $_path);
     }
     /**
      * $_SERVER参数值
@@ -508,7 +508,7 @@ class z
     public static function arrayKeyFilter($keys, $arr, $in = false)
     {
         $keys = !is_array($keys) ? explode(',', $keys) : $keys;
-        $arr = self::arrayFilter($arr, function ($v, $k) use ($keys, $in) {
+        $arr  = self::arrayFilter($arr, function ($v, $k) use ($keys, $in) {
             return (!$in && !in_array($k, $keys, true)) ? true : ($in && in_array($k, $keys, true));
         });
         return $arr;
@@ -548,7 +548,7 @@ class z
     }
     public static function resetZls()
     {
-        $config = self::config();
+        $config             = self::config();
         Zls::$loadedModules = [];
         if ($config->getCacheConfig()) {
             self::cache()->reset();
@@ -586,11 +586,11 @@ class z
     public static function task($taksName, $args = [], $user = '', $phpPath = null)
     {
         $phpPath = $phpPath ?: self::phpPath();
-        $argc = '';
+        $argc    = '';
         foreach ($args as $key => $value) {
             $argc .= " -{$key} $value";
         }
-        $index = ZLS_PATH.'/'.ZLS_INDEX_NAME;
+        $index = ZLS_PATH . '/' . ZLS_INDEX_NAME;
         if (!self::isWin() && (!$user && '' !== $user)) {
             $user = trim(self::command('whoami', '', true));
         }
@@ -606,21 +606,21 @@ class z
     {
         static $phpPath;
         if (!$phpPath) {
-            if (strpos(strtolower(PHP_OS), 'win')!==false) {
-                if($path = z::arrayGet(ini_get_all(), 'extension_dir.local_value', '')){
-                    $phpPath = str_replace('\\', '/', $path);
-                    $phpPath = str_replace('/ext', '/', $phpPath);
-                    $realPath = $phpPath.'php.exe';
-                }else{
+            if (strpos(strtolower(PHP_OS), 'win') !== false) {
+                if ($path = z::arrayGet(ini_get_all(), 'extension_dir.local_value', '')) {
+                    $phpPath  = str_replace('\\', '/', $path);
+                    $phpPath  = str_replace('/ext', '/', $phpPath);
+                    $realPath = $phpPath . 'php.exe';
+                } else {
                     $realPath = 'php.exe';
                 }
             } else {
-                $realPath = PHP_BINDIR.'/php';
+                $realPath = PHP_BINDIR . '/php';
             }
             if (false !== strpos($realPath, 'ephp.exe')) {
                 $realPath = str_replace('ephp.exe', 'php.exe', $realPath);
             }
-            if(!is_file($realPath)){
+            if (!is_file($realPath)) {
                 $realPath = 'php';
             }
             $phpPath = $realPath;
@@ -653,7 +653,7 @@ class z
             if (self::isWin()) {
                 $cmd = "start /b {$cmd} > NUL ";
             } else {
-                $cmd = $user ? 'sudo -u '.$user.' '.$cmd.' > /dev/null &' : $cmd.' > /dev/null &';
+                $cmd = $user ? 'sudo -u ' . $user . ' ' . $cmd . ' > /dev/null &' : $cmd . ' > /dev/null &';
             }
         }
         @ob_start();
@@ -711,8 +711,8 @@ class z
             if ($dh = opendir($dir)) {
                 while (false !== ($file = readdir($dh))) {
                     if ($depth >= 0 && '.' != $file && '..' != $file && !(($fn instanceof Closure) && (false === $fn($dir, $file)))) {
-                        if ((is_dir($dir.'/'.$file))) {
-                            $dirs['folder'][$file] = self::scanFile($dir.'/'.$file.'/', $depth - 1);
+                        if ((is_dir($dir . '/' . $file))) {
+                            $dirs['folder'][$file] = self::scanFile($dir . '/' . $file . '/', $depth - 1);
                         } else {
                             $dirs['file'][] = $file;
                         }
@@ -750,9 +750,9 @@ class z
      */
     public static function business($businessName, $shared = true, $args = [])
     {
-        $name = Zls::getConfig()->getBusinessDirName().'/'.$businessName;
+        $name   = Zls::getConfig()->getBusinessDirName() . '/' . $businessName;
         $object = self::factory($name, $shared, null, $args);
-        Z::throwIf(!($object instanceof Zls_Business), 500, '[ '.$name.' ] not a valid Zls_Business', 'ERROR');
+        Z::throwIf(!($object instanceof Zls_Business), 500, '[ ' . $name . ' ] not a valid Zls_Business', 'ERROR');
         return $object;
     }
     /**
@@ -766,7 +766,7 @@ class z
     public static function factory($className, $shared = false, $hmvcModuleName = null, $args = [])
     {
         if (self::config()->getRoute()->getHmvcModuleName() && !self::strBeginsWith($className, 'Hmvc_')) {
-            $className = 'Hmvc_'.$className;
+            $className = 'Hmvc_' . $className;
         }
         if (self::strEndsWith(strtolower($className), '.php')) {
             $className = substr($className, 0, strlen($className) - 4);
@@ -775,7 +775,7 @@ class z
         if ($hmvcModuleName) {
             $hmvcFlip = self::config()->getHmvcModules();
             $hmvcModuleName = self::arrayGet($hmvcFlip, $hmvcModuleName, $hmvcModuleName);
-            $className = $hmvcModuleName.'\\'.$className;
+            $className      = $hmvcModuleName . '\\' . $className;
         }
         if (!self::di()->has($className)) {
             self::di()->bind($className, ['class' => $className, 'hmvc' => $hmvcModuleName]);
@@ -822,7 +822,7 @@ class z
             if (preg_match('/^[A-Z]+$/', $v)) {
                 $last = self::arrayGet($str, ($k - 1));
                 if ($last && ('/' != $last)) {
-                    $v = $delimiter.$v;
+                    $v = $delimiter . $v;
                 }
             }
         }
@@ -847,23 +847,25 @@ class z
      * @param bool          $call
      * @return object
      */
-    public static function controller($controller, $method = null, $args = [], $hmvcModuleName = null, $before = false, $after = false,$call = false)
+    public static function controller($controller, $method = null, $args = [], $hmvcModuleName = null, $before = false, $after = false, $call = false)
     {
         if ((bool)$hmvcModuleName) {
             Zls::checkHmvc($hmvcModuleName);
         }
-        if(is_string($controller)){
-            $class = z::strBeginsWith($controller, '\\')?$controller:Zls::getConfig()->getControllerDirName().'_'.$controller;
+        if (is_string($controller)) {
+            $class = z::strBeginsWith($controller, 'Controller') || z::strBeginsWith($controller, '\\') ? $controller : Zls::getConfig()->getControllerDirName() . '_' . $controller;
+            Z::throwIf(!Z::classIsExists($class), 404, 'Controller [ ' . $class . ' ] not found');
             $controllerObject = self::factory($class, true);
-        }else{
+        } else {
             $controllerObject = $controller;
-            $class = get_class($controllerObject);
+            $class            = get_class($controllerObject);
         }
-        $config = self::config();
-        $controllerShort=  str_replace([$config->getControllerDirName().'\\',$config->getControllerDirName().'_'], '', $class);
-        Z::throwIf(!($controllerObject instanceof Zls_Controller), 500, '[ '.$class.' ] not a valid Zls_Controller', 'ERROR');
+        Z::throwIf(!($controllerObject instanceof Zls_Controller), 404, '[ ' . $class . ' ] not a valid Zls_Controller');
+        $config          = self::config();
+        $controllerShort = str_replace([$config->getControllerDirName() . '\\', $config->getControllerDirName() . '_'], '', $class);
+        Z::throwIf(!($controllerObject instanceof Zls_Controller), 500, '[ ' . $class . ' ] not a valid Zls_Controller', 'ERROR');
         if ($method) {
-            $methodFull = $config->getMethodPrefix().$method;
+            $methodFull = $config->getMethodPrefix() . $method;
             if ($before) {
                 if (method_exists($controllerObject, 'before')) {
                     $controllerObject->before($method, $controllerShort, $args, $class);
@@ -871,15 +873,16 @@ class z
             }
             if (!method_exists($controllerObject, $methodFull)) {
                 $containCall = $call && method_exists($controllerObject, 'call');
-                Z::throwIf(!$containCall, 404, 'Method [ '.$class.'->'.$methodFull.'() ] not found');
-                Z::end($controllerObject->call($method, $controllerShort, $args, $class));
+                Z::throwIf(!$containCall, 404, 'Method [ ' . $class . '->' . $methodFull . '() ] not found');
+                $str = $controllerObject->call($method, $controllerShort, $args, $class);
+                Z::end(is_numeric($str) ? (string)$str : $str);
             }
-            $cacheClassName = &$controllerShort;
-            $cacheMethodName = &$method;
-            $methodKey = $cacheClassName.':'.$cacheMethodName;
+            $cacheClassName    = &$controllerShort;
+            $cacheMethodName   = &$method;
+            $methodKey         = $cacheClassName . ':' . $cacheMethodName;
             $cacheMethodConfig = $config->getMethodCacheConfig();
             if (!empty($cacheMethodConfig)
-                && Z::arrayKeyExists( $methodKey,$cacheMethodConfig)
+                && Z::arrayKeyExists($methodKey, $cacheMethodConfig)
                 && $cacheMethodConfig[$methodKey]['cache']
                 && ($cacheMethoKey = $cacheMethodConfig[$methodKey]['key']())
             ) {
@@ -891,12 +894,12 @@ class z
                     Z::cache()->set($cacheMethoKey, $contents, $cacheMethodConfig[$methodKey]['time']);
                 }
             } else {
-                $run = function() use ($controllerObject,$methodFull,$method, $controllerShort, $args, $class){
-                    if(method_exists($controllerObject, 'execute')){
-                        $response = $controllerObject->execute(function () use ($controllerObject,$methodFull,$args){
-                            return call_user_func_array([$controllerObject, $methodFull],$args);
-                        },$method, $controllerShort, $args, $class);
-                    }else{
+                $run = function () use ($controllerObject, $methodFull, $method, $controllerShort, $args, $class) {
+                    if (method_exists($controllerObject, 'execute')) {
+                        $response = $controllerObject->execute(function () use ($controllerObject, $methodFull, $args) {
+                            return call_user_func_array([$controllerObject, $methodFull], $args);
+                        }, $method, $controllerShort, $args, $class);
+                    } else {
                         $response = call_user_func_array([$controllerObject, $methodFull], $args);
                     }
                     return $response;
@@ -921,6 +924,38 @@ class z
             return $controllerObject;
         }
     }
+    public static function classIsExists($class)
+    {
+        if (class_exists($class, false)) {
+            return true;
+        }
+        $classNamePath = str_replace('_', '/', $class);
+        foreach (self::config()->getPackages() as $path) {
+            if (file_exists($filePath = $path . self::config()->getClassesDirName() . '/' . $classNamePath . '.php')) {
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * exit/die代替
+     */
+    public static function end($msg = '')
+    {
+        self::throwIf(self::isSwoole(), 'Exception', $msg);
+        die($msg);
+    }
+    /**
+     * @return \Zls_View
+     */
+    public static function view()
+    {
+        static $view = null;
+        if (is_null($view)) {
+            $view = self::factory('Zls_View');
+        }
+        return $view;
+    }
     /**
      * @param       $daoName
      * @param bool  $shared
@@ -929,9 +964,9 @@ class z
      */
     public static function dao($daoName, $shared = false, $args = [])
     {
-        $name = Zls::getConfig()->getDaoDirName().'/'.$daoName;
+        $name   = Zls::getConfig()->getDaoDirName() . '/' . $daoName;
         $object = self::factory($name, $shared, null, $args);
-        Z::throwIf(!($object instanceof Zls_Dao), 500, '[ '.$name.' ] not a valid Zls_Dao', 'ERROR');
+        Z::throwIf(!($object instanceof Zls_Dao), 500, '[ ' . $name . ' ] not a valid Zls_Dao', 'ERROR');
         return $object;
     }
     /**
@@ -945,15 +980,15 @@ class z
     {
         if ('object' === gettype($beanName)) {
             $object = $beanName;
-            $name = get_class($beanName);
+            $name   = get_class($beanName);
         } else {
-            $name = Zls::getConfig()->getBeanDirName().'/'.$beanName;
+            $name   = Zls::getConfig()->getBeanDirName() . '/' . $beanName;
             $object = self::factory($name, $shared, null, $args);
         }
-        self::throwIf(!($object instanceof Zls_Bean), 500, '[ '.$name.' ] not a valid Zls_Bean', 'ERROR');
+        self::throwIf(!($object instanceof Zls_Bean), 500, '[ ' . $name . ' ] not a valid Zls_Bean', 'ERROR');
         return self::tap($object, function ($object) use ($row) {
             foreach ($row as $key => $value) {
-                $method = 'set'.Z::strSnake2Camel($key);
+                $method = 'set' . Z::strSnake2Camel($key);
                 $object->{$method}($value);
             }
         });
@@ -980,9 +1015,9 @@ class z
      */
     public static function model($modelName, $shared = true, $args = [])
     {
-        $name = Zls::getConfig()->getModelDirName().'/'.$modelName;
+        $name   = Zls::getConfig()->getModelDirName() . '/' . $modelName;
         $object = self::factory($name, $shared, null, $args);
-        Z::throwIf(!($object instanceof Zls_Model), 500, '[ '.$name.' ] not a valid Zls_Model', 'ERROR');
+        Z::throwIf(!($object instanceof Zls_Model), 500, '[ ' . $name . ' ] not a valid Zls_Model', 'ERROR');
         return $object;
     }
     /**
@@ -1007,16 +1042,16 @@ class z
             $loadedFunctionsFile[$functionFilename] = 1;
         }
         $config = Zls::getConfig();
-        $found = false;
+        $found  = false;
         foreach ($config->getPackages() as $packagePath) {
-            $filePath = $packagePath.$config->getFunctionsDirName().'/'.$functionFilename.'.php';
+            $filePath = $packagePath . $config->getFunctionsDirName() . '/' . $functionFilename . '.php';
             if (file_exists($filePath)) {
                 self::includeOnce($filePath);
                 $found = true;
                 break;
             }
         }
-        Z::throwIf(!$found, 500, 'functions file [ '.$functionFilename.'.php ] not found', 'ERROR');
+        Z::throwIf(!$found, 500, 'functions file [ ' . $functionFilename . '.php ] not found', 'ERROR');
     }
     /**
      * 引入文件 优化版
@@ -1027,9 +1062,9 @@ class z
         static $includeFiles = [];
         $key = md5(self::realPath($filePath));
         if (!self::arrayKeyExists($key, $includeFiles, false)) {
-            if(self::isSwoole()){
+            if (self::isSwoole()) {
                 include_once $filePath;
-            }else{
+            } else {
                 include $filePath;
             }
             $includeFiles[$key] = 1;
@@ -1049,18 +1084,25 @@ class z
         static $result = [];
         static $parsed = false;
         if (!$parsed) {
-            $parsed = true;
-            $params = self::arrayGet($GLOBALS, 'argv', []);
+            $parsed  = true;
+            $params  = self::arrayGet($GLOBALS, 'argv', []);
             $jumpKey = [];
             foreach ($params as $k => $p) {
                 if (!in_array($k, $jumpKey, true)) {
-                    if ((bool)$p && '-' == $p[0]) {
-                        $pname = substr($p, 1);
+                    if ((bool)$p) {
+                        $pname = null;
+                        $value = true;
+                        if (strpos($p, '=') !== false) {
+                            $_tmp  = explode('=', $p, 2);
+                            $pname = $_tmp[0];
+                            $value = $_tmp[1];
+                        } elseif ('-' == $p[0]) {
+                            $pname = substr($p, 1);
+                        }
                         if ($pname) {
-                            $value = true;
                             $nextparm = z::arrayGet($params, $k + 1);
                             if (true === $value && null !== $nextparm && !((bool)$nextparm && is_string($nextparm) && '-' == $nextparm[0])) {
-                                $value = $nextparm;
+                                $value     = $nextparm;
                                 $jumpKey[] = $k + 1;
                             }
                             //$value = null;
@@ -1081,6 +1123,7 @@ class z
                 }
             }
         }
+        z::dump($result);
         return empty($key) ? $result : (self::arrayKeyExists($key, $result) ? $result[$key] : $default);
     }
     public static function postGet($key = null, $default = null, $xssClean = true)
@@ -1089,7 +1132,7 @@ class z
             $value = self::post() ?: self::get();
         } else {
             $postValue = self::arrayGet($_POST, $key);
-            $value = is_null($postValue) ? self::arrayGet($_GET, $key, $default) : $postValue;
+            $value     = is_null($postValue) ? self::arrayGet($_GET, $key, $default) : $postValue;
         }
         return $xssClean ? self::xssClean($value) : $value;
     }
@@ -1158,7 +1201,7 @@ class z
         $data = preg_replace('#</*\w+:\w[^>]*+>#i', '', $data);
         do {
             $old_data = $data;
-            $data = preg_replace(
+            $data     = preg_replace(
                 '#</*(?:applet|b(?:ase|gsound|link)|embed|iframe|frame(?:set)?|i(?:frame|layer)|l(?:ayer|ink)|meta|object|s(?:cript|tyle)|title|xml)[^>]*+>#i',
                 '',
                 $data
@@ -1180,7 +1223,7 @@ class z
      */
     public static function session($key = null, $default = null, $xssClean = false)
     {
-        $id = self::sessionStart();
+        $id      = self::sessionStart();
         $session = (self::isSwoole(true) && ($sessionHandle = self::config()->getSessionHandle())) ? $sessionHandle->swooleRead($id) : $_SESSION;
         //$session = (self::isSwoole(true) && ($sessionHandle = self::config()->getSessionHandle())) ? $sessionHandle->swooleGet(null) : $_SESSION;
         $value = is_null($key) ? (empty($session) ? [] : $session) : self::arrayGet($session, $key, $default);
@@ -1193,7 +1236,7 @@ class z
      */
     public static function sessionStart($id = null)
     {
-        if (!!$id||!self::di()->has('ZlsSessionID')) {
+        if (!!$id || !self::di()->has('ZlsSessionID')) {
             $sessionId = '';
             if (!self::isCli()) {
                 if (self::phpCanV()) {
@@ -1210,10 +1253,10 @@ class z
                 $sessionId = session_id();
             } elseif (self::isSwoole(true)) {
                 $sessionConfig = self::config()->getSessionConfig();
-                $sessionName = $sessionConfig['session_name'];
-                $sessionId = $id ?: z::cookieRaw($sessionName);
+                $sessionName   = $sessionConfig['session_name'];
+                $sessionId     = $id ?: z::cookieRaw($sessionName);
                 if (!$sessionId) {
-                    $sessionId = md5(uniqid(z::clientIp(), true)).mt_rand(1000, 9999);
+                    $sessionId = md5(uniqid(z::clientIp(), true)) . mt_rand(1000, 9999);
                     z::setCookieRaw($sessionName, $sessionId, time() + $sessionConfig['lifetime'], '/');
                 }
                 $sessionHandle = self::config()->getSessionHandle();
@@ -1268,19 +1311,23 @@ class z
             }
             return false;
         };
+        $defaultIp     = '0.0.0.0';
+        $filterIp      = function ($ip) use ($defaultIp) {
+            return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : $defaultIp;
+        };
         foreach ($source as $v) {
             if ($ip = self::server($v)) {
                 if (!in_array($v, $check)) {
-                    return $ip;
+                    return $filterIp($ip);
                 }
                 if ($ip = $checkClientIp($v)) {
-                    return $ip;
+                    return $filterIp($ip);
                 } else {
                     continue;
                 }
             }
         }
-        return 'Unknown';
+        return $defaultIp;
     }
     public static function setCookieRaw($key, $value, $life = null, $path = '/', $domian = null, $httpOnly = false)
     {
@@ -1291,16 +1338,16 @@ class z
             if (!is_null($domian)) {
                 $autoDomain = $domian;
             } else {
-                $host = explode(':', self::server('HTTP_HOST'));
-                $domian = $host[0];
-                $is_ip = preg_match('/^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/', $domian);
+                $host             = explode(':', self::server('HTTP_HOST'));
+                $domian           = $host[0];
+                $is_ip            = preg_match('/^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/', $domian);
                 $notRegularDomain = preg_match('/^[^\\.]+$/', $domian);
                 if ($is_ip) {
                     $autoDomain = $domian;
                 } elseif ($notRegularDomain) {
                     $autoDomain = null;
                 } else {
-                    $autoDomain = '.'.$domian;
+                    $autoDomain = '.' . $domian;
                 }
             }
             setcookie(
@@ -1322,13 +1369,16 @@ class z
      */
     public static function header($content)
     {
-        if (self::isSwoole(true)) {
-            $header = explode(':', $content);
-            $k = array_shift($header);
-            $c = join(':', $header);
-            self::di()->makeShared('SwooleResponse')->header($k, trim($c));
-        } elseif (!self::isCli()) {
-            header($content);
+        try {
+            if (self::isSwoole(true)) {
+                $header = explode(':', $content);
+                $k      = array_shift($header);
+                $c      = join(':', $header);
+                self::di()->makeShared('SwooleResponse')->header($k, trim($c));
+            } elseif (!self::isCli()) {
+                header($content);
+            }
+        } catch (\Exception $e) {
         }
     }
     /**
@@ -1365,14 +1415,14 @@ class z
         $a = [];
         $b = $arr;
         while (0 != count($keys)) {
-            $k = array_shift($keys);
-            $b = isset($b[$k]) ? $b[$k] : [];
+            $k     = array_shift($keys);
+            $b     = isset($b[$k]) ? $b[$k] : [];
             $a[$k] = $b;
         }
-        $ka = array_keys($a);
+        $ka          = array_keys($a);
         $a[end($ka)] = $value;
         for ($index = count($ka) - 2; $index >= 0; --$index) {
-            $k = $ka[$index];
+            $k     = $ka[$index];
             $nextK = $ka[$index + 1];
             $a[$k] = array_merge($a[$k], [$nextK => $a[$nextK]]);
         }
@@ -1386,7 +1436,7 @@ class z
     {
         $id = self::sessionStart();
         $isSwoole = self::isSwoole(true) && ($sessionHandle = self::config()->getSessionHandle());
-        $isNull = is_null($key);
+        $isNull   = is_null($key);
         if ($isNull) {
             if (!$isSwoole) {
                 session_unset();
@@ -1427,7 +1477,7 @@ class z
      */
     public static function cookie($key = null, $default = null, $xssClean = false)
     {
-        $key = is_null($key) ? null : self::config()->getCookiePrefix().$key;
+        $key   = is_null($key) ? null : self::config()->getCookiePrefix() . $key;
         $value = self::cookieRaw($key, $default, $xssClean);
         return $xssClean ? self::xssClean($value) : $value;
     }
@@ -1442,7 +1492,7 @@ class z
      */
     public static function setCookie($key, $value, $life = null, $path = '/', $domian = null, $http_only = false)
     {
-        $key = self::config()->getCookiePrefix().$key;
+        $key = self::config()->getCookiePrefix() . $key;
         self::setCookieRaw($key, $value, $life, $path, $domian, $http_only);
     }
     /**
@@ -1497,7 +1547,7 @@ class z
     }
     public static function createSqlite3Database($path)
     {
-        return new PDO('sqlite:'.$path);
+        return new PDO('sqlite:' . $path);
     }
     /**
      * 获取缓存数据,不存在则写入
@@ -1529,12 +1579,12 @@ class z
         if (empty($dirPath)) {
             return false;
         }
-        $dirPath = self::realPath($dirPath).'/';
+        $dirPath = self::realPath($dirPath) . '/';
         foreach (scandir($dirPath) as $value) {
             if ('.' == $value || '..' == $value) {
                 continue;
             }
-            $path = $dirPath.$value;
+            $path = $dirPath . $value;
             if (!is_dir($path)) {
                 @unlink($path);
             } else {
@@ -1557,7 +1607,7 @@ class z
     public static function url($url = '', $getData = [], $opt = ['subfix' => true, 'ishmvc' => false])
     {
         $config = self::config();
-        $route = $config->getRoute();
+        $route     = $config->getRoute();
         $routeType = z::tap($route->getType(), function (&$type) use ($config) {
             if (!$type && ((bool)$getRouters = $config->getRouters())) {
                 $routeType = get_class(end($getRouters));
@@ -1587,7 +1637,7 @@ class z
         $root = getcwd();
         $root = str_replace(['/', '\\'], '/', $root);
         $path = self::realPath($subpath, $addSlash, true);
-        return preg_replace('|^'.self::realPath($root, $addSlash).'|', '', $path);
+        return preg_replace('|^' . self::realPath($root, $addSlash) . '|', '', $path);
     }
     /**
      * 获取当前网站域名
@@ -1598,16 +1648,16 @@ class z
      */
     public static function host($prefix = true, $uri = false, $query = false)
     {
-        $host = '';
+        $host     = '';
         $queryStr = '';
         if (false !== $prefix) {
             $protocol = ('on' == self::server('HTTPS') || 443 == self::server('SERVER_PORT')) ? 'https://' : 'http://';
-            $host .= (is_string($prefix)) ? $prefix.self::server('HTTP_HOST') : $protocol.self::server('HTTP_HOST');
+            $host     .= (is_string($prefix)) ? $prefix . self::server('HTTP_HOST') : $protocol . self::server('HTTP_HOST');
         }
         if ((bool)$uri) {
             $path = strstr(self::server('REQUEST_URI'), '?', true) ?: self::server('REQUEST_URI');
             if (!$path) {
-                $path = strstr(self::server('SCRIPT_NAME'), ZLS_PATH.'/'.ZLS_INDEX_NAME, true).self::arrayGet(
+                $path = strstr(self::server('SCRIPT_NAME'), ZLS_PATH . '/' . ZLS_INDEX_NAME, true) . self::arrayGet(
                         $_SERVER,
                         'PATH_INFO',
                         self::arrayGet($_SERVER, 'REDIRECT_PATH_INFO')
@@ -1623,7 +1673,7 @@ class z
             $queryStr = $query;
         }
         if ($queryStr) {
-            $host .= '?'.$queryStr;
+            $host .= '?' . $queryStr;
         }
         return $host;
     }
@@ -1636,11 +1686,11 @@ class z
      */
     public static function readData(array $map, $sourceData = null, $replenish = true)
     {
-        $data = [];
+        $data     = [];
         $formdata = is_null($sourceData) ? self::post() : $sourceData;
         if ('integer' == gettype(key($map))) {
             $_map = $map;
-            $map = [];
+            $map  = [];
             foreach ($_map as $item) {
                 $map[$item] = $item;
             }
@@ -1671,10 +1721,10 @@ class z
      */
     public static function checkValue($value = '', $rule = [], $db = null)
     {
-        $_err = '';
+        $_err    = '';
         $_errKey = '';
-        $redata = [];
-        $rules = [];
+        $redata  = [];
+        $rules   = [];
         foreach ($rule as $k => $v) {
             if (is_int($k)) {
                 $rules[$v] = true;
@@ -1690,8 +1740,8 @@ class z
     }
     /**
      * 数据验证
-     * @param array  $data          需要检验的数据
-     * @param array  $rules         验证规则
+     * @param array   $data         需要检验的数据
+     * @param array   $rules        验证规则
      * @param array  &$returnData   验证通过后，处理过的数据
      * @param string &$errorMessage 验证失败时的错误信息
      * @param string &$errorKey     验证失败的时候验证失败的那个key字段名称
@@ -1704,8 +1754,8 @@ class z
         static $checkRules;
         if (empty($checkRules)) {
             $defaultRules = (class_exists('\Zls\Action\CheckRules')) ? z::extension('Action\CheckRules')->getRules() : [];
-            $userRules = self::config()->getDataCheckRules();
-            $checkRules = (!empty($userRules) && is_array($userRules)) ? array_merge(
+            $userRules    = self::config()->getDataCheckRules();
+            $checkRules   = (!empty($userRules) && is_array($userRules)) ? array_merge(
                 $defaultRules,
                 $userRules
             ) : $defaultRules;
@@ -1718,33 +1768,33 @@ class z
             $matches[2] = self::arrayKeyExists(2, $matches) ? explode($matches[3], $matches[2]) : [];
             return $matches;
         };
-        $returnData = $data;
+        $returnData       = $data;
         foreach ($rules as $key => $keyRules) {
             foreach ($keyRules as $rule => $message) {
                 $matches = $getCheckRuleInfo($rule);
-                $_v = self::arrayGet($returnData, $key);
-                $_r = $matches[1];
-                $args = $matches[2];
+                $_v      = self::arrayGet($returnData, $key);
+                $_r      = $matches[1];
+                $args    = $matches[2];
                 if (('function' == $_r) && (is_array($message) ? method_exists($message[0], $message[1]) : (is_callable($message)))) {
                     $ruleFunction = $message;
                 } elseif (!Z::arrayKeyExists($_r, $checkRules) || !is_callable($checkRules[$_r])) {
-                    Z::throwIf(true, 500, 'error rule [ '.$_r.' ]');
+                    Z::throwIf(true, 500, 'error rule [ ' . $_r . ' ]');
                 }
-                $db = (is_object($db) && ($db instanceof \Zls_Database_ActiveRecord)) ? $db : Z::db();
-                $break = false;
+                $db          = (is_object($db) && ($db instanceof \Zls_Database_ActiveRecord)) ? $db : Z::db();
+                $break       = false;
                 $returnValue = null;
-                $isOkay = false;
+                $isOkay      = false;
                 if ('function' == $_r) {
                     if (is_array($message)) {
                         $errorMessage = call_user_func_array($message, [$key, $_v, $data, $args, &$returnValue, &$break, &$db]);
-                        $isOkay = !$errorMessage;
+                        $isOkay       = !$errorMessage;
                     } elseif (is_callable($message) || (is_string($message) && function_exists($message))) {
                         $errorMessage = $message($key, $_v, $data, $args, $returnValue, $break, $db);
-                        $isOkay = !$errorMessage;
+                        $isOkay       = !$errorMessage;
                     }
                 } else {
                     $ruleFunction = $checkRules[$_r];
-                    $isOkay = $ruleFunction($key, $_v, $data, $args, $returnValue, $break, $db);
+                    $isOkay       = $ruleFunction($key, $_v, $data, $args, $returnValue, $break, $db);
                     $errorMessage = $isOkay ? null : $message;
                 }
                 if (!$isOkay) {
@@ -1763,7 +1813,7 @@ class z
     }
     public static function extension($className, $shared = true, $args = [])
     {
-        return self::factory('Zls_'.$className, $shared, null, $args);
+        return self::factory('Zls_' . $className, $shared, null, $args);
     }
     /**
      * 获取数据库操作对象
@@ -1779,9 +1829,9 @@ class z
         };
         if (is_array($group)) {
             $groupString = json_encode($group);
-            $key = self::swooleUuid(md5($groupString));
+            $key         = self::swooleUuid(md5($groupString));
             if (!self::arrayKeyExists($key, self::$dbInstances) || $isNewInstance) {
-                $group['group'] = $groupString;
+                $group['group']          = $groupString;
                 self::$dbInstances[$key] = $getDb($group);
             }
         } else {
@@ -1793,9 +1843,9 @@ class z
             $key = self::swooleUuid($group);
             if (!self::arrayKeyExists($key, self::$dbInstances) || $isNewInstance) {
                 $config = self::config()->getDatabaseConfig($group);
-                Z::throwIf(empty($config), 'Database', 'unknown database config group [ '.$group.' ]');
-                $config['group'] = $group;
-                self::$dbInstances[$key]  = $getDb($config);
+                Z::throwIf(empty($config), 'Database', 'unknown database config group [ ' . $group . ' ]');
+                $config['group']         = $group;
+                self::$dbInstances[$key] = $getDb($config);
             }
         }
         return self::$dbInstances[$key];
@@ -1806,7 +1856,7 @@ class z
             $value = self::get() ?: self::post();
         } else {
             $getValue = self::arrayGet($_GET, $key);
-            $value = is_null($getValue) ? self::arrayGet($_POST, $key, $default) : $getValue;
+            $value    = is_null($getValue) ? self::arrayGet($_POST, $key, $default) : $getValue;
         }
         return $xssClean ? self::xssClean($value) : $value;
     }
@@ -1821,15 +1871,15 @@ class z
      */
     public static function page($total, $page = 1, $pagesize = 10, $url = '{page}', $a_count = 6)
     {
-        $a_num = ($a_count > 0) ? $a_count : 10;
-        $a_num = 0 == $a_num % 2 ? $a_num + 1 : $a_num;
-        $pages = ceil($total / $pagesize);
+        $a_num   = ($a_count > 0) ? $a_count : 10;
+        $a_num   = 0 == $a_num % 2 ? $a_num + 1 : $a_num;
+        $pages   = ceil($total / $pagesize);
         $curpage = (int)$page ?: 1;
         $curpage = $curpage > $pages || $curpage <= 0 ? 1 : $curpage;
-        $start = $curpage - ($a_num - 1) / 2;
-        $end = $curpage + ($a_num - 1) / 2;
-        $start = $start <= 0 ? 1 : $start;
-        $end = $end > $pages ? $pages : $end;
+        $start   = $curpage - ($a_num - 1) / 2;
+        $end     = $curpage + ($a_num - 1) / 2;
+        $start   = $start <= 0 ? 1 : $start;
+        $end     = $end > $pages ? $pages : $end;
         if ($pages >= $a_num) {
             if ($curpage <= ($a_num - 1) / 2) {
                 $end = $a_num;
@@ -1839,14 +1889,14 @@ class z
             }
         }
         $result = [
-            'pages' => [],
-            'total' => $total,
-            'count' => $pages,
+            'pages'   => [],
+            'total'   => $total,
+            'count'   => $pages,
             'curpage' => $curpage,
-            'prefix' => (int)(1 == $curpage ? '' : str_replace('{page}', $curpage - 1, $url)),
-            'start' => (int)(str_replace('{page}', 1, $url)),
-            'end' => (int)(str_replace('{page}', $pages, $url)),
-            'subfix' => (int)(($curpage == $pages || 0 == $pages) ? '' : str_replace('{page}', $curpage + 1, $url)),
+            'prefix'  => (int)(1 == $curpage ? '' : str_replace('{page}', $curpage - 1, $url)),
+            'start'   => (int)(str_replace('{page}', 1, $url)),
+            'end'     => (int)(str_replace('{page}', $pages, $url)),
+            'subfix'  => (int)(($curpage == $pages || 0 == $pages) ? '' : str_replace('{page}', $curpage + 1, $url)),
         ];
         for ($i = $start; $i <= $end; ++$i) {
             $result['pages'][$i] = str_replace('{page}', $i, $url);
@@ -1855,7 +1905,7 @@ class z
     }
     public static function json()
     {
-        $args = func_get_args();
+        $args   = func_get_args();
         $handle = self::config()->getOutputJsonRender();
         if (is_callable($handle)) {
             return call_user_func_array($handle, $args);
@@ -1876,7 +1926,7 @@ class z
             z::di()->makeShared('SwooleResponse')->status(302);
         }
         if (empty($msg) && empty($view)) {
-            self::header('Location: '.$url);
+            self::header('Location: ' . $url);
         } else {
             $time = intval($time) ? intval($time) : 3;
             self::header("refresh:{$time};url={$url}"); //单位秒
@@ -1885,25 +1935,6 @@ class z
             }
         }
         self::end($msg);
-    }
-    /**
-     * @return \Zls_View
-     */
-    public static function view()
-    {
-        static $view = null;
-        if (is_null($view)) {
-            $view = self::factory('Zls_View');
-        }
-        return $view;
-    }
-    /**
-     * exit/die代替
-     */
-    public static function end($msg = '')
-    {
-        self::throwIf(self::isSwoole(), 'Exception', $msg);
-        die($msg);
     }
     public static function finish($msg = '')
     {
@@ -1930,15 +1961,15 @@ class z
     public static function __callStatic($name, $arguments)
     {
         $methods = self::config()->getZMethods();
-        self::throwIf(empty($methods[$name]), 500, $name.' not found in ->setZMethods() or it is empty');
+        self::throwIf(empty($methods[$name]), 500, $name . ' not found in ->setZMethods() or it is empty');
         if (is_string($methods[$name])) {
-            $className = $methods[$name].'_'.self::arrayGet($arguments, 0);
-            self::throwIf(!$className, 500, $name.$methods[$name].'() need argument of class name ');
+            $className = $methods[$name] . '_' . self::arrayGet($arguments, 0);
+            self::throwIf(!$className, 500, $name . $methods[$name] . '() need argument of class name ');
             return self::factory($className);
         } elseif (is_callable($methods[$name])) {
             return call_user_func_array($methods[$name], $arguments);
         } else {
-            self::throwIf(true, 500, $name.' unknown type of method [ '.$name.' ]');
+            self::throwIf(true, 500, $name . ' unknown type of method [ ' . $name . ' ]');
         }
         return false;
     }
@@ -1954,7 +1985,7 @@ class z
         if (!$str) {
             return '';
         }
-        $iv = $key = substr(md5(self::getEncryptKey($key, $attachKey)), 0, 16);
+        $iv        = $key = substr(md5(self::getEncryptKey($key, $attachKey)), 0, 16);
         $blockSize = 16;
         $msgLength = strlen($str);
         if (0 != $msgLength % $blockSize) {
@@ -1971,7 +2002,7 @@ class z
     {
         $_key = $key ? $key : self::config()->getEncryptKey();
         self::throwIf(!$key && !$_key, 500, 'encrypt key can not empty or you can set it in index.php : ->setEncryptKey()');
-        return $_key.$attachKey;
+        return $_key . $attachKey;
     }
     /**
      * 解密
@@ -1988,19 +2019,6 @@ class z
         $iv = $key = substr(md5(self::getEncryptKey($key, $attachKey)), 0, 16);
         return trim(@openssl_decrypt(hex2bin($str), 'AES-128-CBC', $key, OPENSSL_NO_PADDING, $iv), "\0") ?: false;
     }
-    public static function classIsExists($class)
-    {
-        if (class_exists($class, false)) {
-            return true;
-        }
-        $classNamePath = str_replace('_', '/', $class);
-        foreach (self::config()->getPackages() as $path) {
-            if (file_exists($filePath = $path.self::config()->getClassesDirName().'/'.$classNamePath.'.php')) {
-                return true;
-            }
-        }
-        return false;
-    }
     /**
      * 检测ip是否在白名单内
      * @param $clientIp
@@ -2009,12 +2027,12 @@ class z
      */
     public static function isWhiteIp($clientIp)
     {
-        $config = Z::config();
+        $config  = Z::config();
         $isWhite = false;
         foreach ($config->getMaintainIpWhitelist() as $ip) {
-            $info = explode('/', $ip);
+            $info    = explode('/', $ip);
             $netmask = empty($info[1]) ? '32' : $info[1];
-            if ($info && Z::ipInfo($clientIp.'/'.$netmask, 'netaddress') == Z::ipInfo($info[0].'/'.$netmask, 'netaddress')) {
+            if ($info && Z::ipInfo($clientIp . '/' . $netmask, 'netaddress') == Z::ipInfo($info[0] . '/' . $netmask, 'netaddress')) {
                 $isWhite = true;
                 break;
             }
@@ -2033,38 +2051,38 @@ class z
      */
     public static function ipInfo($ipAddr, $key = null)
     {
-        $ipAddr = str_replace(' ', '', $ipAddr);
-        $arr = explode('/', $ipAddr);
-        $ipAddr = $arr[0];
+        $ipAddr    = str_replace(' ', '', $ipAddr);
+        $arr       = explode('/', $ipAddr);
+        $ipAddr    = $arr[0];
         $ipAddrArr = explode('.', $ipAddr);
         foreach ($ipAddrArr as $k => $v) {
             $ipAddrArr[$k] = intval($v);
         }
-        $ipAddr = implode('.', $ipAddrArr);
-        $netbits = intval((self::arrayKeyExists(1, $arr) ? $arr[1] : 0));
-        $subnetMask = long2ip(ip2long('255.255.255.255') << (32 - $netbits));
-        $ip = ip2long($ipAddr);
-        $nm = ip2long($subnetMask);
-        $nw = ($ip & $nm);
-        $bc = $nw | (~$nm);
-        $ips = [];
+        $ipAddr         = implode('.', $ipAddrArr);
+        $netbits        = intval((self::arrayKeyExists(1, $arr) ? $arr[1] : 0));
+        $subnetMask     = long2ip(ip2long('255.255.255.255') << (32 - $netbits));
+        $ip             = ip2long($ipAddr);
+        $nm             = ip2long($subnetMask);
+        $nw             = ($ip & $nm);
+        $bc             = $nw | (~$nm);
+        $ips            = [];
         $ips['netmask'] = long2ip($nm);
-        $ips['count'] = ($bc - $nw - 1);
+        $ips['count']   = ($bc - $nw - 1);
         if ($ips['count'] <= 0) {
             $ips['count'] += 4294967296;
         }
         if (32 == $netbits) {
             $ips['count'] = 0;
             $ips['start'] = long2ip($ip);
-            $ips['end'] = long2ip($ip);
+            $ips['end']   = long2ip($ip);
         } else {
             $ips['start'] = long2ip($nw + 1);
-            $ips['end'] = long2ip($bc - 1);
+            $ips['end']   = long2ip($bc - 1);
         }
-        $bc = sprintf('%u', $bc);
-        $nw = sprintf('%u', $nw);
+        $bc                = sprintf('%u', $bc);
+        $nw                = sprintf('%u', $nw);
         $ips['netaddress'] = long2ip((int)$nw);
-        $ips['broadcast'] = long2ip((int)$bc);
+        $ips['broadcast']  = long2ip((int)$bc);
         return is_null($key) ? $ips : $ips[$key];
     }
     /**
@@ -2104,7 +2122,7 @@ class Zls
 {
     public static $loadedModules = [];
     public static $zlsTime;
-    public static $zlsMemory     = false;
+    public static $zlsMemory = false;
     /**
      * 包类库自动加载器
      * @param string $className
@@ -2113,15 +2131,15 @@ class Zls
     public static function classAutoloader($className)
     {
         $className = str_replace(['/', '_'], '\\', $className);
-        $config = self::getConfig();
+        $config    = self::getConfig();
         $className = str_replace(['Hmvc\\', 'Packages\\'], '', $className);
-        $classPath = $config->getClassesDirName().'/'.str_replace('\\', '/', $className).'.php';
-        $alias = $config->getAlias();
+        $classPath = $config->getClassesDirName() . '/' . str_replace('\\', '/', $className) . '.php';
+        $alias     = $config->getAlias();
         if (isset($alias[$className])) {
             return class_alias($alias[$className], $className);
         } else {
             foreach ($config->getPackages() as $path) {
-                if (file_exists($filePath = $path.$classPath)) {
+                if (file_exists($filePath = $path . $classPath)) {
                     Z::includeOnce($filePath);
                     return true;
                 }
@@ -2155,8 +2173,8 @@ class Zls
         }
         spl_autoload_register(['Zls', 'classAutoloader']);
         if (get_magic_quotes_gpc()) {
-            $_GET = Z::stripSlashes($_GET);
-            $_POST = Z::stripSlashes($_POST);
+            $_GET    = Z::stripSlashes($_GET);
+            $_POST   = Z::stripSlashes($_POST);
             $_COOKIE = Z::stripSlashes($_COOKIE);
         }
         $zlsConfig->setAppDir(ZLS_APP_PATH);
@@ -2169,7 +2187,7 @@ class Zls
      */
     public static function run()
     {
-        $config = Zls::getConfig();
+        $config         = Zls::getConfig();
         $exceptionLevel = $config->getExceptionLevel();
         error_reporting(empty($exceptionLevel) ? E_ALL ^ E_DEPRECATED : $config->getExceptionLevel());
         if ($config->getExceptionControl()) {
@@ -2195,12 +2213,12 @@ class Zls
         if (!ZLS_RUN_MODE_CLI) {
             return false;
         }
-        $executes = [];
-        $args = Z::getOpt();
+        $executes       = [];
+        $args           = Z::getOpt();
         $hmvcModuleName = Z::arrayGet($args, 'hmvc');
-        $current = strtolower(current(array_slice(array_keys($args), 1)));
-        $isTask = ('task' === $current);
-        $activity = $isTask ? str_replace('/', '_', Z::arrayGet($args, 'task')) : Z::arrayGet($args, 1);
+        $current        = strtolower(current(array_slice(array_keys($args), 1)));
+        $isTask         = ('task' === $current);
+        $activity       = $isTask ? str_replace('/', '_', Z::arrayGet($args, 'task')) : Z::arrayGet($args, 1);
         // }
         if (!empty($hmvcModuleName)) {
             self::checkHmvc($hmvcModuleName);
@@ -2208,14 +2226,14 @@ class Zls
         $taskObject = null;
         try {
             if ($isTask) {
-                $taskName = Zls::getConfig()->getTaskDirName().'_'.$activity;
+                $taskName   = Zls::getConfig()->getTaskDirName() . '_' . $activity;
                 $taskObject = z::factory($taskName, true);
-                Z::throwIf(!($taskObject instanceof Zls_Task), 500, '[ '.$taskName.' ] not a valid Zls_Task', 'ERROR');
+                Z::throwIf(!($taskObject instanceof Zls_Task), 500, '[ ' . $taskName . ' ] not a valid Zls_Task', 'ERROR');
                 $executes = ['_execute'];
             } else {
-                $command = new Zls_Command($args);
+                $command    = new Zls_Command($args);
                 $taskObject = $command->instance();
-                $executes = $command->executes();
+                $executes   = $command->executes();
             }
         } catch (\Zls_Exception_500 $e) {
             Z::end($e->getMessage());
@@ -2231,7 +2249,7 @@ class Zls
     public static function initDebug()
     {
         self::$zlsMemory = function_exists('memory_get_usage') ? memory_get_usage() : false;
-        self::$zlsTime = Z::microtime();
+        self::$zlsTime   = Z::microtime();
     }
     /**
      * 检测并加载hmvc模块,成功返回模块文件夹名称，失败返回false或抛出异常
@@ -2242,16 +2260,16 @@ class Zls
     public static function checkHmvc($hmvcModuleName, $throwException = true)
     {
         if (!empty($hmvcModuleName)) {
-            $config = Zls::getConfig();
+            $config      = Zls::getConfig();
             $hmvcModules = $config->getHmvcModules();
             if (empty($hmvcModules[$hmvcModuleName])) {
-                Z::throwIf($throwException, 500, 'Hmvc Module [ '.$hmvcModuleName.' ] not found, please check your config.', 'ERROR');
+                Z::throwIf($throwException, 500, 'Hmvc Module [ ' . $hmvcModuleName . ' ] not found, please check your config.', 'ERROR');
                 return false;
             }
             $hmvcModuleDirName = $hmvcModules[$hmvcModuleName];
             if (!Z::arrayKeyExists($hmvcModuleName, self::$loadedModules)) {
                 self::$loadedModules[$hmvcModuleName] = 1;
-                $hmvcModulePath = $config->getAppDir().$config->getHmvcDirName().'/'.$hmvcModuleDirName.'/';
+                $hmvcModulePath = $config->getAppDir() . $config->getHmvcDirName() . '/' . $hmvcModuleDirName . '/';
                 $config->setAppDir($hmvcModulePath)->addMasterPackage($hmvcModulePath)->bootstrap();
             }
             return $hmvcModuleDirName;
@@ -2267,8 +2285,8 @@ class Zls
     }
     public static function initSession($id = null)
     {
-        $sessionConfig = self::getConfig()->getSessionConfig();
-        $sessionHandle = self::getConfig()->getSessionHandle();
+        $sessionConfig     = self::getConfig()->getSessionConfig();
+        $sessionHandle     = self::getConfig()->getSessionHandle();
         $haveSessionHandle = $sessionHandle && $sessionHandle instanceof Zls_Session;
         @ini_set('session.auto_start', 0);
         @ini_set('session.gc_probability', 1);
@@ -2303,25 +2321,29 @@ class Zls
     public static function runWeb($result = false)
     {
         self::initDebug();
-        $config = Z::config();
-        $_apiDoc = (isset($_GET['_api']) && (bool)$config->getApiDocToken() && (Z::get('_token', '', true) === $config->getApiDocToken()) && class_exists('\Zls\Action\ApiDoc'));
-        $config = self::getConfig();
-        $class = '';
-        $method = '';
+        $config   = Z::config();
+        $contents = null;
+        $_apiDoc  = (isset($_GET['_api']) && (bool)$config->getApiDocToken() && (Z::get('_token', '', true) === $config->getApiDocToken()) && class_exists('\Zls\Action\ApiDoc'));
+        $config   = self::getConfig();
+        $class    = '';
+        $method   = '';
         foreach ($config->getRouters() as $router) {
-            $route = $router->find(null);
+            $route      = $router->find();
+            $routeClass = get_class($router);
             if (is_object($route) && $route->found()) {
                 $config->setRoute($route);
-                $route->setType(get_class($router));
-                $class = $route->getController();
+                $route->setType($routeClass);
+                $class  = $route->getController();
                 $method = $route->getMethod();
                 break;
             } elseif (is_string($route) || is_int($route) || is_null($route)) {
-                $config->getRoute()->setType(get_class($router));
-                echo $route;
-                if (!$_apiDoc) {
-                    return false;
-                }
+                $config->getRoute()->setType($routeClass);
+                $contents = $route;
+                break;
+            } elseif ($route === true) {
+                $contents = '';
+            } elseif (is_array($route)) {
+                Z::throwIf(true, 500, 'Cannot output array type, please use "return Z::view()->load($view, $data)"');
             }
         }
         if ($config->getIsMaintainMode()) {
@@ -2333,6 +2355,7 @@ class Zls
                 }
             }
         }
+        !is_null($contents) && Z::end((string)$contents);
         Z::throwIf(empty($route), 500, 'none router was found in configuration', 'ERROR');
         $_route = $config->getRoute();
         if ($hmvcModuleName = (null !== $_route->getHmvcModuleName()) ? $_route->getHmvcModuleName() : $config->getCurrentDomainHmvcModuleNname()) {
@@ -2344,11 +2367,11 @@ class Zls
             $_route->setHmvcModuleName(false);
         }
         if (empty($class)) {
-            $class = $config->getControllerDirName().'_'.$config->getDefaultController();
+            $class = $config->getControllerDirName() . '_' . $config->getDefaultController();
             $_route->setController($class);
         }
         if (empty($method)) {
-            $method = $config->getMethodPrefix().$config->getDefaultMethod();
+            $method = $config->getMethodPrefix() . $config->getDefaultMethod();
             $_route->setMethod($method);
         }
         $config->setRoute($_route);
@@ -2376,12 +2399,10 @@ class Zls
                 }
                 return false;
             }
-            $controllerObject = Z::factory($class);
+            //$controllerObject = Z::factory($class);
             $_method = str_replace($config->getMethodPrefix(), '', $method);
-            $_controllerShort = preg_replace('/^'.$config->getControllerDirName().'_/', '', $class);
-            $_controller = $_route->getController();
-            $_args = $_route->getArgs();
-            $contents =  Z::controller($controllerObject,$_method,$_args,null,true,true,true);
+            $_args    = $_route->getArgs();
+            $contents = Z::controller($class, $_method, $_args, null, true, true, true);
         }
         if (!$result) {
             echo $contents;
@@ -2400,40 +2421,40 @@ class Zls_Command
         if ('artisan' === z::arrayGet($args, 1)) {
             $args = array_values(array_diff($args, ['artisan']));
         }
-        $first = z::arrayGet($args, 1);
-        $config = Z::config();
-        $taskObject = '';
+        $first       = z::arrayGet($args, 1);
+        $config      = Z::config();
+        $taskObject  = '';
         $commandMain = '\Zls\Command\Main';
         if (!class_exists($commandMain)) {
-            Z::end('Warning: command not installed, Please install "composer require zls/command"'.PHP_EOL);
+            Z::end('Warning: command not installed, Please install "composer require zls/command"' . PHP_EOL);
         }
-        $defaultCmd = 'Main';
+        $defaultCmd      = 'Main';
         $argsCommandName = $first ?: $defaultCmd;
-        $name = $argsCommandName;
-        $command = explode(':', $name);
-        $name = array_shift($command);
-        $executes = $command;
-        $commandLists = $config->getCommands();
+        $name            = $argsCommandName;
+        $command         = explode(':', $name);
+        $name            = array_shift($command);
+        $executes        = $command;
+        $commandLists    = $config->getCommands();
         if ($name === $defaultCmd) {
             $commandName = $commandMain;
         } elseif (Z::arrayKeyExists($name, $commandLists)) {
             $commandName = $commandLists[$name];
         } else {
-            $name = ucfirst($name);
-            $commandName = 'Command_'.$name;
+            $name        = ucfirst($name);
+            $commandName = 'Command_' . $name;
         }
         try {
             $taskObject = z::factory($commandName, true);
         } catch (\Zls_Exception_500 $e) {
-            $err = $e->getMessage();
+            $err    = $e->getMessage();
             $errSub = 'not found';
             Z::throwIf(!Z::strEndsWith($err, $errSub), 500, $err);
             try {
-                $taskObject = z::factory('\\Zls\\Command\\'.$name, true);
+                $taskObject = z::factory('\\Zls\\Command\\' . $name, true);
             } catch (\Zls_Exception_500 $e) {
                 $err = $e->getMessage();
                 Z::throwIf(!Z::strEndsWith($err, $errSub), 500, $err);
-                Z::end("Command { {$name} } is not defined".PHP_EOL);
+                Z::end("Command { {$name} } is not defined" . PHP_EOL);
             }
         }
         $this->command = $taskObject;
@@ -2457,17 +2478,17 @@ class Zls_Command
 class Zls_Di
 {
     protected $_instances = [];
-    protected $_service   = [];
+    protected $_service = [];
     protected $appDir;
+    public function merge(\Zls_Di $di)
+    {
+        $list             = $di->lists();
+        $this->_service   = array_merge($list['service'], $this->_service);
+        $this->_instances = array_merge($list['instances'], $this->_instances);
+    }
     public function lists()
     {
         return ['service' => $this->_service, 'instances' => $this->_instances];
-    }
-    public function merge(\Zls_Di $di)
-    {
-        $list = $di->lists();
-        $this->_service = array_merge($list['service'], $this->_service);
-        $this->_instances = array_merge($list['instances'], $this->_instances);
     }
     public function bind($name, $definition)
     {
@@ -2478,12 +2499,12 @@ class Zls_Di
         if (!is_null($name)) {
             unset($this->_service[$name]);
             foreach ($this->_instances as $k => $v) {
-                if (z::strBeginsWith($k, $name.':')) {
+                if (z::strBeginsWith($k, $name . ':')) {
                     unset($this->_instances[$k]);
                 }
             }
         } else {
-            $this->_service = [];
+            $this->_service   = [];
             $this->_instances = [];
         }
     }
@@ -2491,7 +2512,7 @@ class Zls_Di
     {
         $original = $name;
         if ((bool)$args) {
-            $name = $name.':'.json_encode($args);
+            $name = $name . ':' . json_encode($args);
         }
         if (!isset($this->_instances[$name])) {
             $this->_instances[$name] = $this->factory($original, $args);
@@ -2501,7 +2522,7 @@ class Zls_Di
     private function factory($name, $args = [])
     {
         $contain = isset($this->_service[$name]);
-        Z::throwIf(!$contain, 500, 'Service ['.$name.'] wasn\'t found in the dependency injection container', 'ERROR');
+        Z::throwIf(!$contain, 500, 'Service [' . $name . '] wasn\'t found in the dependency injection container', 'ERROR');
         $definition = $this->_service[$name];
         if (is_array($definition)) {
             if (Z::isPluginMode()) {
@@ -2528,15 +2549,15 @@ class Zls_Di
                     preg_match('/Hmvc.?(.*)/i', $definition, $match);
                     $newDefinition = Z::arrayGet($match, 1, $definition);
                     if (!$className = $classNameFn($newDefinition)) {
-                        $className = $classNameFn('Packages_'.$newDefinition);
+                        $className = $classNameFn('Packages_' . $newDefinition);
                     }
                 }
-                Z::throwIf(!$className, 500, 'class [ '.$definition.' ] not found', 'ERROR');
+                Z::throwIf(!$className, 500, 'class [ ' . $definition . ' ] not found', 'ERROR');
                 $closure = null;
                 if (!$args) {
                     $closure = new $className();
                 } else {
-                    $class = new ReflectionClass($className);
+                    $class   = new ReflectionClass($className);
                     $closure = $class->newInstanceArgs($args);
                     //要容错?
                 }
@@ -2572,7 +2593,7 @@ class Zls_PDO extends PDO
         if (!$this->transactionCounter++) {
             return parent::beginTransaction();
         }
-        $this->exec('SAVEPOINT trans'.$this->transactionCounter);
+        $this->exec('SAVEPOINT trans' . $this->transactionCounter);
         return $this->transactionCounter >= 0;
     }
     public function commit()
@@ -2587,7 +2608,7 @@ class Zls_PDO extends PDO
     public function rollback()
     {
         if (--$this->transactionCounter) {
-            $this->exec('ROLLBACK TO trans'.($this->transactionCounter + 1));
+            $this->exec('ROLLBACK TO trans' . ($this->transactionCounter + 1));
             return true;
         }
         return parent::rollback();
@@ -2621,24 +2642,24 @@ class Zls_Database_ActiveRecord extends Zls_Database
     }
     protected function _reset()
     {
-        $this->arSelect = [];
-        $this->arFrom = [];
-        $this->arJoin = [];
-        $this->arWhere = [];
-        $this->arGroupby = [];
-        $this->arHaving = [];
-        $this->arOrderby = [];
-        $this->arLimit = '';
-        $this->primaryKey = '';
-        $this->arSet = [];
+        $this->arSelect      = [];
+        $this->arFrom        = [];
+        $this->arJoin        = [];
+        $this->arWhere       = [];
+        $this->arGroupby     = [];
+        $this->arHaving      = [];
+        $this->arOrderby     = [];
+        $this->arLimit       = '';
+        $this->primaryKey    = '';
+        $this->arSet         = [];
         $this->arUpdateBatch = [];
-        $this->arInsert = [];
+        $this->arInsert      = [];
         $this->arInsertBatch = [];
-        $this->_asTable = [];
-        $this->_asColumn = [];
-        $this->_values = [];
-        $this->_sqlType = 'select';
-        $this->_currentSql = '';
+        $this->_asTable      = [];
+        $this->_asColumn     = [];
+        $this->_values       = [];
+        $this->_sqlType      = 'select';
+        $this->_currentSql   = '';
     }
     /**
      * 展示字段
@@ -2721,8 +2742,8 @@ class Zls_Database_ActiveRecord extends Zls_Database
      */
     public function insert($table, array $data)
     {
-        $this->_sqlType = 'insert';
-        $this->arInsert = $data;
+        $this->_sqlType              = 'insert';
+        $this->arInsert              = $data;
         $this->_lastInsertBatchCount = 0;
         $this->from($table);
         return $this;
@@ -2740,21 +2761,21 @@ class Zls_Database_ActiveRecord extends Zls_Database
             $as = current($from);
             if (!$from = key($from)) {
                 $from = $as;
-                $as = '';
+                $as   = '';
             }
         } elseif ($from instanceof Closure) {
             $_db = $this->cloneDb();
             $from($_db);
-            $from = ' ('.$_db->getSql().') ';
+            $from   = ' (' . $_db->getSql() . ') ';
             $values = $_db->getSqlValues();
             foreach ($values as $value) {
                 array_push($this->_values, $value);
             }
             if (!$as) {
-                $as = '_tmp'.md5($from);
+                $as = '_tmp' . md5($from);
             }
         }
-        $this->arFrom = [$from, $as,$wrap];
+        $this->arFrom = [$from, $as, $wrap];
         if ($as) {
             $this->_asTable[$as] = 1;
         }
@@ -2808,63 +2829,63 @@ class Zls_Database_ActiveRecord extends Zls_Database
     }
     private function _getSelectSql()
     {
-        $from = $this->_getFrom();
-        $where = $this->_getWhere();
+        $from   = $this->_getFrom();
+        $where  = $this->_getWhere();
         $having = '';
         foreach ($this->arHaving as $w) {
             $having .= call_user_func_array([$this, '_compileWhere'], $w);
         }
         $having = trim($having);
         if ($having) {
-            $having = "\n".' HAVING '.$having;
+            $having = "\n" . ' HAVING ' . $having;
         }
         $groupBy = trim($this->_compileGroupBy());
         if ($groupBy) {
-            $groupBy = "\n".' GROUP BY '.$groupBy;
+            $groupBy = "\n" . ' GROUP BY ' . $groupBy;
         }
         $orderBy = trim($this->_compileOrderBy());
         if ($orderBy) {
-            $orderBy = "\n".' ORDER BY '.$orderBy;
+            $orderBy = "\n" . ' ORDER BY ' . $orderBy;
         }
-        $limit = $this->_getLimit();
+        $limit  = $this->_getLimit();
         $select = $this->_compileSelect();
         if ($this->_isSqlsrv() && (bool)$limit) {
             $limitArg = explode(',', $limit);
             if (count($limitArg) > 1) {
                 $offset = (int)$limitArg[1];
-                $limit = (int)$limitArg[0];
+                $limit  = (int)$limitArg[0];
                 if ((bool)$orderBy) {
-                    $orderBy = $orderBy.' OFFSET '.$limit.' ROWS FETCH NEXT '.$offset.'  ROWS ONLY ';
+                    $orderBy = $orderBy . ' OFFSET ' . $limit . ' ROWS FETCH NEXT ' . $offset . '  ROWS ONLY ';
                 } else {
                     $primaryKey = $this->getPrimaryKey();
-                    $orderBy = "\n".' ORDER BY '.$primaryKey.' ASC';
+                    $orderBy    = "\n" . ' ORDER BY ' . $primaryKey . ' ASC';
                     if ($limit > 0) {
                         $originVal = $this->_values;
                         if ($primaryKey) {
-                            $orderBy = $orderBy.' OFFSET '.$limit.' ROWS FETCH NEXT '.$offset.'  ROWS ONLY ';
+                            $orderBy = $orderBy . ' OFFSET ' . $limit . ' ROWS FETCH NEXT ' . $offset . '  ROWS ONLY ';
                         }
                         $this->_values = $originVal;
                     } else {
-                        $select = ' TOP '.$offset.' '.$select;
+                        $select = ' TOP ' . $offset . ' ' . $select;
                     }
                 }
             } else {
             }
             $limit = '';
         }
-        $sql = "\n".' SELECT '
-            .$select
-            ."\n".' FROM '.$from
-            .$where
-            .$groupBy
-            .$having
-            .$orderBy
-            .$limit;
+        $sql = "\n" . ' SELECT '
+            . $select
+            . "\n" . ' FROM ' . $from
+            . $where
+            . $groupBy
+            . $having
+            . $orderBy
+            . $limit;
         return $sql;
     }
     private function _getFrom()
     {
-        $table = ' '.call_user_func_array([$this, '_compileFrom'], $this->arFrom).' ';
+        $table = ' ' . call_user_func_array([$this, '_compileFrom'], $this->arFrom) . ' ';
         foreach ($this->arJoin as $join) {
             $table .= call_user_func_array([$this, '_compileJoin'], $join);
         }
@@ -2883,7 +2904,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
                     } elseif ($v instanceof Closure) {
                         $_db = $this->cloneDb();
                         $v($_db);
-                        $v = [' ('.$_db->getSql().') ', $_db->getSqlValues()];
+                        $v    = [' (' . $_db->getSql() . ') ', $_db->getSqlValues()];
                         $w[5] = true;
                     }
                 }
@@ -2898,7 +2919,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
         }
         $where = trim($where);
         if ($where) {
-            $where = "\n".' WHERE '.$where;
+            $where = "\n" . ' WHERE ' . $where;
         }
         return $where;
     }
@@ -2908,25 +2929,25 @@ class Zls_Database_ActiveRecord extends Zls_Database
         foreach ($this->arGroupby as $key) {
             $_key = explode('.', $key);
             if (2 == count($_key)) {
-                $groupBy[] = $this->_protectIdentifier($this->_checkPrefix($_key[0])).'.'.$this->_protectIdentifier($_key[1]);
+                $groupBy[] = $this->_protectIdentifier($this->_checkPrefix($_key[0])) . '.' . $this->_protectIdentifier($_key[1]);
             } else {
                 $groupBy[] = $this->_protectIdentifier($_key[0]);
             }
         }
         return implode(' , ', $groupBy);
     }
-    private function _protectIdentifier($str,$wrap = true)
+    private function _protectIdentifier($str, $wrap = true)
     {
         if (!$wrap || stripos($str, '(') || stripos($str, ')') || '*' == trim($str)) {
             return $str;
         }
-        $_str = explode(' ', $str);
-        $point = (!$this->_isSqlsrv()) ? '``' : '[]';
+        $_str     = explode(' ', $str);
+        $point    = (!$this->_isSqlsrv()) ? '``' : '[]';
         $point[3] = ('[' === $point[0]) ? '[dbo].[' : $point[0];
         if (3 == count($_str) && 'as' == strtolower($_str[1])) {
-            return $point[3].$_str[0].$point[1].' AS '.$point[0].$_str[2].$point[1];
+            return $point[3] . $_str[0] . $point[1] . ' AS ' . $point[0] . $_str[2] . $point[1];
         } else {
-            return $point[3].$str.$point[1];
+            return $point[3] . $str . $point[1];
         }
     }
     private function _checkPrefix($str)
@@ -2934,7 +2955,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
         $prefix = $this->getTablePrefix();
         if ($prefix && false === strpos($str, $prefix)) {
             if (!Z::arrayKeyExists($str, $this->_asTable)) {
-                return $prefix.$str;
+                return $prefix . $str;
             }
         }
         return $str;
@@ -2946,9 +2967,9 @@ class Zls_Database_ActiveRecord extends Zls_Database
             $type = strtoupper($type);
             $_key = explode('.', $key);
             if (2 == count($_key)) {
-                $orderby[] = $this->_protectIdentifier($this->_checkPrefix($_key[0])).'.'.$this->_protectIdentifier($_key[1]).' '.$type;
+                $orderby[] = $this->_protectIdentifier($this->_checkPrefix($_key[0])) . '.' . $this->_protectIdentifier($_key[1]) . ' ' . $type;
             } else {
-                $orderby[] = $this->_protectIdentifier($_key[0]).' '.$type;
+                $orderby[] = $this->_protectIdentifier($_key[0]) . ' ' . $type;
             }
         }
         return implode(' , ', $orderby);
@@ -2957,7 +2978,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
     {
         $limit = $this->arLimit;
         if ($limit && !$this->_isSqlsrv()) {
-            $limit = "\n".' LIMIT '.$limit;
+            $limit = "\n" . ' LIMIT ' . $limit;
         }
         return $limit;
     }
@@ -2969,14 +2990,14 @@ class Zls_Database_ActiveRecord extends Zls_Database
         }
         foreach ($selects as $key => $_value) {
             $protect = $_value[1];
-            $value = trim($_value[0]);
+            $value   = trim($_value[0]);
             if ('*' != $value) {
                 $_info = explode('.', $value);
                 if (2 == count($_info)) {
-                    $_v = $this->_checkPrefix($_info[0]);
+                    $_v       = $this->_checkPrefix($_info[0]);
                     $_info[0] = $protect ? $this->_protectIdentifier($_v) : $_v;
                     $_info[1] = $protect ? $this->_protectIdentifier($_info[1]) : $_info[1];
-                    $value = implode('.', $_info);
+                    $value    = implode('.', $_info);
                 } else {
                     $value = $protect ? $this->_protectIdentifier($value) : $value;
                 }
@@ -2989,11 +3010,11 @@ class Zls_Database_ActiveRecord extends Zls_Database
     {
         if (!$this->primaryKey) {
             $primaryKey = '';
-            $db = clone $this;
+            $db         = clone $this;
             if ($this->_isSqlsrv()) {
-                $primaryKey = $db->execute('EXEC sp_pkeys @table_name=\''.trim(strtr(Z::arrayGet($this->arFrom, 0, $this->_getFrom()), ['[' => '', ']' => ''])).'\'')->value('COLUMN_NAME');
+                $primaryKey = $db->execute('EXEC sp_pkeys @table_name=\'' . trim(strtr(Z::arrayGet($this->arFrom, 0, $this->_getFrom()), ['[' => '', ']' => ''])) . '\'')->value('COLUMN_NAME');
             } elseif ($this->_isMysql()) {
-                $sql = 'SHOW FULL COLUMNS FROM '.trim(strtr($this->_getFrom(), ['`' => '']));
+                $sql    = 'SHOW FULL COLUMNS FROM ' . trim(strtr($this->_getFrom(), ['`' => '']));
                 $result = $db->execute($sql)->rows();
                 foreach ($result as $val) {
                     if ('pri' == strtolower($val['Key'])) {
@@ -3012,9 +3033,9 @@ class Zls_Database_ActiveRecord extends Zls_Database
     }
     private function _getUpdateSql()
     {
-        $sql[] = "\n".'UPDATE ';
+        $sql[] = "\n" . 'UPDATE ';
         $sql[] = $this->_getFrom();
-        $sql[] = "\n".'SET';
+        $sql[] = "\n" . 'SET';
         $sql[] = $this->_compileSet();
         $sql[] = $this->_getWhere();
         $sql[] = $this->_getLimit();
@@ -3026,19 +3047,19 @@ class Zls_Database_ActiveRecord extends Zls_Database
         foreach ($this->arSet as $key => $value) {
             list($value, $wrap) = $value;
             if ($wrap) {
-                $set[] = $this->_protectIdentifier($key).' = '.'?';
+                $set[]           = $this->_protectIdentifier($key) . ' = ' . '?';
                 $this->_values[] = $value;
             } else {
-                $set[] = $this->_protectIdentifier($key).' = '.$value;
+                $set[] = $this->_protectIdentifier($key) . ' = ' . $value;
             }
         }
         return implode(' , ', $set);
     }
     private function _getUpdateBatchSql()
     {
-        $sql[] = "\n".'UPDATE ';
+        $sql[] = "\n" . 'UPDATE ';
         $sql[] = $this->_getFrom();
-        $sql[] = "\n".'SET';
+        $sql[] = "\n" . 'SET';
         $sql[] = $this->_compileUpdateBatch();
         $sql[] = $this->_getWhere();
         return implode(' ', $sql);
@@ -3047,21 +3068,21 @@ class Zls_Database_ActiveRecord extends Zls_Database
     {
         list($values, $index) = $this->arUpdateBatch;
         if (count($values) && Z::arrayKeyExists("0.$index", $values)) {
-            $ids = [];
-            $final = [];
+            $ids     = [];
+            $final   = [];
             $_values = [];
             foreach ($values as $key => $val) {
                 $ids[] = $val[$index];
                 foreach (array_keys($val) as $field) {
                     if ($field != $index) {
                         if (is_array($val[$field])) {
-                            $_column = explode(' ', key($val[$field]));
-                            $column = $this->_protectIdentifier($_column[0]);
-                            $op = isset($_column[1]) ? $_column[1] : '';
-                            $final[$field][] = 'WHEN '.$this->_protectIdentifier($index).' = '.$val[$index].' THEN '.$column.' '.$op.' '.'?';
+                            $_column           = explode(' ', key($val[$field]));
+                            $column            = $this->_protectIdentifier($_column[0]);
+                            $op                = isset($_column[1]) ? $_column[1] : '';
+                            $final[$field][]   = 'WHEN ' . $this->_protectIdentifier($index) . ' = ' . $val[$index] . ' THEN ' . $column . ' ' . $op . ' ' . '?';
                             $_values[$field][] = current($val[$field]);
                         } else {
-                            $final[$field][] = 'WHEN '.$this->_protectIdentifier($index).' = '.$val[$index].' THEN '.'?';
+                            $final[$field][]   = 'WHEN ' . $this->_protectIdentifier($index) . ' = ' . $val[$index] . ' THEN ' . '?';
                             $_values[$field][] = $val[$field];
                         }
                     }
@@ -3078,14 +3099,14 @@ class Zls_Database_ActiveRecord extends Zls_Database
                 }
             }
             $_values = null;
-            $sql = '';
-            $cases = '';
+            $sql     = '';
+            $cases   = '';
             foreach ($final as $k => $v) {
-                $cases .= $this->_protectIdentifier($k).' = CASE '."\n";
+                $cases .= $this->_protectIdentifier($k) . ' = CASE ' . "\n";
                 foreach ($v as $row) {
-                    $cases .= $row."\n";
+                    $cases .= $row . "\n";
                 }
-                $cases .= 'ELSE '.$this->_protectIdentifier($k).' END, ';
+                $cases .= 'ELSE ' . $this->_protectIdentifier($k) . ' END, ';
             }
             $sql .= substr($cases, 0, -2);
             return $sql;
@@ -3094,22 +3115,22 @@ class Zls_Database_ActiveRecord extends Zls_Database
     }
     private function _getInsertSql()
     {
-        $sql[] = "\n".'INSERT INTO ';
+        $sql[] = "\n" . 'INSERT INTO ';
         $sql[] = $this->_getFrom();
         $sql[] = $this->_compileInsert();
         return implode(' ', $sql);
     }
     private function _compileInsert()
     {
-        $keys = [];
+        $keys   = [];
         $values = [];
         foreach ($this->arInsert as $key => $value) {
-            $keys[] = $this->_protectIdentifier($key);
-            $values[] = '?';
+            $keys[]          = $this->_protectIdentifier($key);
+            $values[]        = '?';
             $this->_values[] = $value;
         }
         if (!empty($keys)) {
-            return '('.implode(',', $keys).') '."\n".'VALUES ('.implode(',', $values).')';
+            return '(' . implode(',', $keys) . ') ' . "\n" . 'VALUES (' . implode(',', $values) . ')';
         }
         return '';
     }
@@ -3125,7 +3146,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
     }
     private function _compileInsertBatch()
     {
-        $keys = [];
+        $keys   = [];
         $values = [];
         if (!empty($this->arInsertBatch[0])) {
             foreach ($this->arInsertBatch[0] as $key => $value) {
@@ -3134,12 +3155,12 @@ class Zls_Database_ActiveRecord extends Zls_Database
             foreach ($this->arInsertBatch as $row) {
                 $_values = [];
                 foreach ($row as $key => $value) {
-                    $_values[] = '?';
+                    $_values[]       = '?';
                     $this->_values[] = $value;
                 }
-                $values[] = '('.implode(',', $_values).')';
+                $values[] = '(' . implode(',', $_values) . ')';
             }
-            return '('.implode(',', $keys).') '."\n VALUES ".implode(' , ', $values);
+            return '(' . implode(',', $keys) . ') ' . "\n VALUES " . implode(' , ', $values);
         }
         return '';
     }
@@ -3185,8 +3206,8 @@ class Zls_Database_ActiveRecord extends Zls_Database
      */
     public function insertBatch($table, array $data)
     {
-        $this->_sqlType = 'insertBatch';
-        $this->arInsertBatch = $data;
+        $this->_sqlType              = 'insertBatch';
+        $this->arInsertBatch         = $data;
         $this->_lastInsertBatchCount = count($data);
         $this->from($table);
         return $this;
@@ -3199,8 +3220,8 @@ class Zls_Database_ActiveRecord extends Zls_Database
      */
     public function replaceBatch($table, array $data)
     {
-        $this->_sqlType = 'replaceBatch';
-        $this->arInsertBatch = $data;
+        $this->_sqlType              = 'replaceBatch';
+        $this->arInsertBatch         = $data;
         $this->_lastInsertBatchCount = count($data);
         $this->from($table);
         return $this;
@@ -3263,7 +3284,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
      */
     public function set($key, $value, $wrap = true)
     {
-        $this->_sqlType = 'update';
+        $this->_sqlType    = 'update';
         $this->arSet[$key] = [$value, $wrap];
         return $this;
     }
@@ -3277,7 +3298,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
     public function updateBatch($table, array $values, $index)
     {
         $this->from($table);
-        $this->_sqlType = 'updateBatch';
+        $this->_sqlType      = 'updateBatch';
         $this->arUpdateBatch = [$values, $index];
         if (!empty($values[0])) {
             $ids = [];
@@ -3297,7 +3318,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
     {
         $_key = explode('.', $str);
         if (2 == count($_key)) {
-            return $this->_protectIdentifier($this->_checkPrefix($_key[0])).'.'.$this->_protectIdentifier($_key[1]);
+            return $this->_protectIdentifier($this->_checkPrefix($_key[0])) . '.' . $this->_protectIdentifier($_key[1]);
         } else {
             return $this->_protectIdentifier($_key[0]);
         }
@@ -3327,92 +3348,92 @@ class Zls_Database_ActiveRecord extends Zls_Database
             }
         }
         if (is_string($where)) {
-            return ' '.$leftWrap.' '.$where.$rightWrap.' ';
+            return ' ' . $leftWrap . ' ' . $where . $rightWrap . ' ';
         }
         foreach ($where as $key => $value) {
-            $key = trim($key);
+            $key  = trim($key);
             $_key = explode(' ', $key, 2);
-            $op = 2 == count($_key) ? strtoupper($_key[1]) : '';
-            $key = explode('.', $_key[0]);
+            $op   = 2 == count($_key) ? strtoupper($_key[1]) : '';
+            $key  = explode('.', $_key[0]);
             if (2 == count($key)) {
-                $key = $this->_protectIdentifier($this->_checkPrefix($key[0])).'.'.$this->_protectIdentifier($key[1]);
+                $key = $this->_protectIdentifier($this->_checkPrefix($key[0])) . '.' . $this->_protectIdentifier($key[1]);
             } else {
                 $key = $this->_protectIdentifier(current($key));
             }
             if ($child) {
-                $_where[] = $key.($op ? $op : ' =').$value[0];
+                $_where[] = $key . ($op ? $op : ' =') . $value[0];
                 foreach ($value[1] as $v) {
                     array_push($this->_values, $v);
                 }
             } elseif (is_array($value) && !$child) {
                 if ('BETWEEN' !== $op) {
-                    $op = $op ? $op.' IN ' : ' IN ';
-                    $perch = '('.implode(',', array_fill(0, count($value), '?')).')';
+                    $op    = $op ? $op . ' IN ' : ' IN ';
+                    $perch = '(' . implode(',', array_fill(0, count($value), '?')) . ')';
                 } else {
                     $perch = '? AND ?';
-                    $op = ' BETWEEN ';
+                    $op    = ' BETWEEN ';
                 }
-                $_where[] = $key.' '.$op.$perch;
+                $_where[] = $key . ' ' . $op . $perch;
                 foreach ($value as $v) {
                     array_push($this->_values, $v);
                 }
             } elseif (is_bool($value)) {
                 $op = $op ? $op : '=';
-                $value = $value ? 1 : 0;
-                $_where[] = $key.' '.$op.' ? ';
+                $value    = $value ? 1 : 0;
+                $_where[] = $key . ' ' . $op . ' ? ';
                 array_push($this->_values, $value);
             } elseif (is_null($value)) {
                 $op = $op ? $op : 'IS';
-                $_where[] = $key.' '.$op.' NULL ';
+                $_where[] = $key . ' ' . $op . ' NULL ';
             } else {
                 $op = $op ? $op : '=';
-                $_where[] = $key.' '.$op.' ? ';
+                $_where[] = $key . ' ' . $op . ' ? ';
                 array_push($this->_values, $value);
             }
         }
-        return ' '.$leftWrap.' '.implode(' AND ', $_where).$rightWrap.' ';
+        return ' ' . $leftWrap . ' ' . implode(' AND ', $_where) . $rightWrap . ' ';
     }
-    private function _compileFrom($from, $as = '',$wrap = true)
+    private function _compileFrom($from, $as = '', $wrap = true)
     {
         if ($as) {
             $this->_asTable[$as] = 1;
-            $as = ' AS '.$this->_protectIdentifier($as).' ';
+            $as                  = ' AS ' . $this->_protectIdentifier($as) . ' ';
         }
-        return $this->_protectIdentifier($this->_checkPrefix($from),$wrap).$as;
+        return $this->_protectIdentifier($this->_checkPrefix($from), $wrap) . $as;
     }
     private function _compileJoin($table, $on, $type = '')
     {
         if (is_array($table)) {
             $this->_asTable[current($table)] = 1;
-            $table = $this->_protectIdentifier($this->_checkPrefix(key($table))).' AS '.$this->_protectIdentifier(current($table)).' ';
+            $table                           = $this->_protectIdentifier($this->_checkPrefix(key($table))) . ' AS ' . $this->_protectIdentifier(current($table)) . ' ';
         } else {
             $table = $this->_protectIdentifier($this->_checkPrefix($table));
         }
         list($left, $right) = explode('=', $on);
-        $_left = explode('.', $left);
+        $_left  = explode('.', $left);
         $_right = explode('.', $right);
         if (2 == count($_left)) {
             $_left[0] = $this->_protectIdentifier($this->_checkPrefix($_left[0]));
             $_left[1] = $this->_protectIdentifier($_left[1]);
-            $left = ' '.implode('.', $_left).' ';
+            $left     = ' ' . implode('.', $_left) . ' ';
         } else {
             $left = $this->_protectIdentifier($left);
         }
         if (2 == count($_right)) {
             $_right[0] = $this->_protectIdentifier($this->_checkPrefix($_right[0]));
             $_right[1] = $this->_protectIdentifier($_right[1]);
-            $right = ' '.implode('.', $_right).' ';
+            $right     = ' ' . implode('.', $_right) . ' ';
         } else {
             $right = $this->_protectIdentifier($right);
         }
-        $on = $left.' = '.$right;
-        return ' '.$type.' JOIN '.$table.' ON '.$on.' ';
+        $on = $left . ' = ' . $right;
+        return ' ' . $type . ' JOIN ' . $table . ' ON ' . $on . ' ';
     }
 }
 class Zls_Database_Resultset
 {
     private $_resultSet = [];
-    private $_rowsKey   = '';
+    private $_rowsKey = '';
     public function __construct($resultSet)
     {
         $this->_resultSet = $resultSet;
@@ -3454,10 +3475,10 @@ class Zls_Database_Resultset
     }
     public function beans($beanClassName, $toArray = true)
     {
-        $rowsKey = $this->_rowsKey;
+        $rowsKey        = $this->_rowsKey;
         $this->_rowsKey = '';
-        $objects = [];
-        $rows = $this->rows();
+        $objects        = [];
+        $rows           = $this->rows();
         foreach ($rows as $row) {
             $object = Z::bean($beanClassName, $row, false);
             if ($toArray) {
@@ -3478,7 +3499,7 @@ class Zls_Database_Resultset
      */
     public function rows($isAssoc = true)
     {
-        $key = $this->_rowsKey;
+        $key            = $this->_rowsKey;
         $this->_rowsKey = '';
         if ($key) {
             if ($isAssoc) {
@@ -3513,9 +3534,9 @@ class Zls_Database_Resultset
      */
     public function values($columnName)
     {
-        $rowsKey = $this->_rowsKey;
+        $rowsKey        = $this->_rowsKey;
         $this->_rowsKey = '';
-        $columns = [];
+        $columns        = [];
         foreach ($this->_resultSet as $row) {
             if (Z::arrayKeyExists($columnName, $row)) {
                 if ($rowsKey) {
@@ -3557,7 +3578,7 @@ abstract class Zls_Bean
     protected static $noTransform = false;
     final public function toArray($fields = [])
     {
-        $args = get_object_vars($this);
+        $args    = get_object_vars($this);
         $methods = array_diff(get_class_methods($this), get_class_methods(__CLASS__));
         foreach ($methods as $method) {
             $key = static::_get($method);
@@ -3582,7 +3603,7 @@ abstract class Zls_Bean
             $method = static::_get($method);
             return $this->$method;
         }
-        Z::throwIf(true, 500, 'Call to undefined method '.get_called_class().'::'.$method.'()');
+        Z::throwIf(true, 500, 'Call to undefined method ' . get_called_class() . '::' . $method . '()');
         return false;
     }
     private static function _set($method)
@@ -3615,18 +3636,18 @@ abstract class Zls_Database
     private $attribute;
     private $connectionMasters;
     private $connectionSlaves;
-    private $versionThan56    = false;
+    private $versionThan56 = false;
     private $_errorMsg;
     private $_lastSql;
     private $_lastPdoInstance;
     private $_isInTransaction = false;
     private $_config;
-    private $_lastInsertId    = 0;
-    private $_traceRes        = [];
-    private $_cacheTime       = null;
+    private $_lastInsertId = 0;
+    private $_traceRes = [];
+    private $_cacheTime = null;
     private $_cacheKey;
     private $_masterPdo = null;
-    private $_locked    = false;
+    private $_locked = false;
     public function __construct(array $config = [])
     {
         $this->setConfig($config);
@@ -3634,21 +3655,21 @@ abstract class Zls_Database
     public function getDefaultConfig()
     {
         return [
-            'debug' => true,
-            'driverType' => 'mysql',
-            'production' => true,
-            'trace' => false,
-            'timeout' => 5,
-            'pconnect' => false,
-            'charset' => 'utf8',
-            'collate' => 'utf8_general_ci',
-            'database' => '',
-            'tablePrefix' => '',
+            'debug'                    => true,
+            'driverType'               => 'mysql',
+            'production'               => true,
+            'trace'                    => false,
+            'timeout'                  => 5,
+            'pconnect'                 => false,
+            'charset'                  => 'utf8',
+            'collate'                  => 'utf8_general_ci',
+            'database'                 => '',
+            'tablePrefix'              => '',
             'tablePrefixSqlIdentifier' => '_prefix_',
-            'slowQueryDebug' => false,
-            'slowQueryTime' => 3000,
-            'slowQueryHandle' => null,
-            'indexDebug' => false,
+            'slowQueryDebug'           => false,
+            'slowQueryTime'            => 3000,
+            'slowQueryHandle'          => null,
+            'indexDebug'               => false,
             /*
              * 索引使用的最小情况，只有小于最小情况的时候才会记录sql到日志
              * minIndexType值从好到坏依次是:
@@ -3656,18 +3677,18 @@ abstract class Zls_Database
              * > index_merge > unique_subquery > index_subquery > range
              * > index > ALL一般来说，得保证查询至少达到range级别，最好能达到ref
              */
-            'minIndexType' => 'ALL',
-            'indexHandle' => null,
-            'attribute' => [],
-            'masters' => [
+            'minIndexType'             => 'ALL',
+            'indexHandle'              => null,
+            'attribute'                => [],
+            'masters'                  => [
                 'master01' => [
                     'hostname' => '127.0.0.1',
-                    'port' => 3306,
+                    'port'     => 3306,
                     'username' => 'root',
                     'password' => '',
                 ],
             ],
-            'slaves' => [],
+            'slaves'                   => [],
         ];
     }
     public function &getLastPdoInstance()
@@ -3729,14 +3750,6 @@ abstract class Zls_Database
     {
         return $this->_errorMsg;
     }
-    public function close()
-    {
-        $this->_masterPdo = null;
-        $this->_lastPdoInstance = null;
-        $this->connectionMasters = [];
-        $this->connectionSlaves = [];
-        return $this;
-    }
     public function lastSql()
     {
         return $this->_lastSql;
@@ -3787,16 +3800,16 @@ abstract class Zls_Database
             $this->{$key} = $value;
         }
         $this->connectionMasters = [];
-        $this->connectionSlaves = [];
-        $this->_errorMsg = '';
-        $this->_lastSql = '';
-        $this->_isInTransaction = false;
-        $this->_lastInsertId = 0;
-        $this->_lastPdoInstance = null;
-        $this->_cacheKey = '';
-        $this->_cacheTime = null;
-        $this->_masterPdo = '';
-        $this->_locked = false;
+        $this->connectionSlaves  = [];
+        $this->_errorMsg         = '';
+        $this->_lastSql          = '';
+        $this->_isInTransaction  = false;
+        $this->_lastInsertId     = 0;
+        $this->_lastPdoInstance  = null;
+        $this->_cacheKey         = '';
+        $this->_cacheTime        = null;
+        $this->_masterPdo        = '';
+        $this->_locked           = false;
     }
     public function getMasters()
     {
@@ -3843,7 +3856,7 @@ abstract class Zls_Database
                 'getMasters',
                 'connectionMasters',
             ],
-            'slave' => [
+            'slave'  => [
                 'getSlaves',
                 'connectionSlaves',
             ],
@@ -3855,34 +3868,34 @@ abstract class Zls_Database
                 foreach ($configGroup as $key => $config) {
                     if (!Z::arrayKeyExists($key, $connections)) {
                         if ($this->_driverTypeIsString()) {
-                            $options[PDO::ATTR_ERRMODE] = PDO::ERRMODE_EXCEPTION;
-                            $options[PDO::ATTR_PERSISTENT] = $this->getPconnect();
+                            $options[PDO::ATTR_ERRMODE]           = PDO::ERRMODE_EXCEPTION;
+                            $options[PDO::ATTR_PERSISTENT]        = $this->getPconnect();
                             $options[PDO::ATTR_STRINGIFY_FETCHES] = false;
-                            $options[PDO::ATTR_EMULATE_PREPARES] = false;
-                            $options[PDO::ATTR_ORACLE_NULLS] = PDO::NULL_TO_STRING;
+                            $options[PDO::ATTR_EMULATE_PREPARES]  = false;
+                            $options[PDO::ATTR_ORACLE_NULLS]      = PDO::NULL_TO_STRING;
                             if ($this->_isMysql()) {
                                 $options[PDO::ATTR_TIMEOUT] = $this->getTimeout();
-                                $options[\PDO::MYSQL_ATTR_INIT_COMMAND] = 'SET NAMES '.$this->getCharset().' COLLATE '.$this->getCollate();
-                                $dsn = 'mysql:host='.$config['hostname'].';port='.$config['port'].';dbname='.$this->getDatabase().';charset='.$this->getCharset();
+                                $options[\PDO::MYSQL_ATTR_INIT_COMMAND] = 'SET NAMES ' . $this->getCharset() . ' COLLATE ' . $this->getCollate();
+                                $dsn               = 'mysql:host=' . $config['hostname'] . ';port=' . $config['port'] . ';dbname=' . $this->getDatabase() . ';charset=' . $this->getCharset();
                                 $connections[$key] = new \Zls_PDO($dsn, $config['username'], $config['password'], $options);
-                                $connections[$key]->exec('SET NAMES '.$this->getCharset());
+                                $connections[$key]->exec('SET NAMES ' . $this->getCharset());
                             } elseif ($this->_isSqlsrv()) {
-                                $dsn = 'sqlsrv:Server='.$config['hostname'].','.$config['port'].';Database='.$this->getDatabase().';MultipleActiveResultSets=false';
+                                $dsn = 'sqlsrv:Server=' . $config['hostname'] . ',' . $config['port'] . ';Database=' . $this->getDatabase() . ';MultipleActiveResultSets=false';
                                 unset($options[PDO::ATTR_PERSISTENT], $options[PDO::ATTR_EMULATE_PREPARES]);
                                 $options = $options + [1001 => $this->getTimeout()];
-                                if(property_exists('PDO', 'SQLSRV_ATTR_FETCHES_NUMERIC_TYPE')){
+                                if (property_exists('PDO', 'SQLSRV_ATTR_FETCHES_NUMERIC_TYPE')) {
                                     $options[PDO::SQLSRV_ATTR_FETCHES_NUMERIC_TYPE] = true;
                                 }
                                 $connections[$key] = new \Zls_PDO($dsn, $config['username'], $config['password'], $options);
                                 $connections[$key]->setAttribute(PDO::ATTR_STRINGIFY_FETCHES, false);
                             } elseif ($this->_isSqlite()) {
-                                Z::throwIf(!file_exists($this->getDatabase()), 'Database', 'sqlite3 database file ['.Z::realPath($this->getDatabase()).'] not found', 'ERROR');
-                                $connections[$key] = new \Zls_PDO('sqlite:'.$this->getDatabase(), null, null, $options);
+                                Z::throwIf(!file_exists($this->getDatabase()), 'Database', 'sqlite3 database file [' . Z::realPath($this->getDatabase()) . '] not found', 'ERROR');
+                                $connections[$key] = new \Zls_PDO('sqlite:' . $this->getDatabase(), null, null, $options);
                             } else {
-                                Z::throwIf(true, 'Database', 'unknown driverType [ '.$this->getDriverType().' ]', 'ERROR');
+                                Z::throwIf(true, 'Database', 'unknown driverType [ ' . $this->getDriverType() . ' ]', 'ERROR');
                             }
                         } else {
-                            $db = $this->getDriverType();
+                            $db                = $this->getDriverType();
                             $connections[$key] = ($db instanceof Closure) ? $db() : $db;
                         }
                         $getAttribute = $this->getAttribute();
@@ -3979,24 +3992,24 @@ abstract class Zls_Database
     }
     protected function _displayError($e, $code = 0)
     {
-        $sql = $this->_lastSql ? ' , '."\n".'with query : '.$this->_lastSql : '';
-        $group = 'Database Group : [ '.$this->group.' ] , error : ';
+        $sql   = $this->_lastSql ? ' , ' . "\n" . 'with query : ' . $this->_lastSql : '';
+        $group = 'Database Group : [ ' . $this->group . ' ] , error : ';
         if ($e instanceof Exception) {
-            $this->_errorMsg = $e->getMessage().$sql;
+            $this->_errorMsg = $e->getMessage() . $sql;
         } else {
-            $this->_errorMsg = $e.$sql;
+            $this->_errorMsg = $e . $sql;
         }
         if ($this->getDebug() || $this->_isInTransaction) {
             if ($e instanceof Exception) {
                 throw new \Zls_Exception_Database(
-                    Z::toUtf8($group.$this->_errorMsg),
+                    Z::toUtf8($group . $this->_errorMsg),
                     500,
                     'Zls_Exception_Database',
                     $e->getFile(),
                     $e->getLine()
                 );
             } else {
-                throw new \Zls_Exception_Database(Z::toUtf8($group.$e.$sql), $code);
+                throw new \Zls_Exception_Database(Z::toUtf8($group . $e . $sql), $code);
             }
         }
     }
@@ -4037,7 +4050,7 @@ abstract class Zls_Database
     public function cache($cacheTime, $cacheKey = '')
     {
         $this->_cacheTime = (int)$cacheTime;
-        $this->_cacheKey = $cacheKey;
+        $this->_cacheKey  = $cacheKey;
         return $this;
     }
     /**
@@ -4048,7 +4061,7 @@ abstract class Zls_Database
         return Z::tap($this->arFrom ? vsprintf(str_replace('?', '%s', $this->getSql()), z::arrayMap($this->getSqlValues(), function ($e) {
             return is_string($e) ? "'{$e}'" : $e;
         })) : '', function () {
-            $this->_cacheKey = '';
+            $this->_cacheKey  = '';
             $this->_cacheTime = null;
             $this->_reset();
         });
@@ -4066,16 +4079,16 @@ abstract class Zls_Database
      * @param bool   $reconnection
      * @return array|bool|int|Zls_Database_Resultset
      */
-    public function execute($sql = '', array $values = [], $reconnection=true)
+    public function execute($sql = '', array $values = [], $reconnection = true)
     {
         $trace = [];
         if ($this->slowQueryDebug || $this->indexDebug) {
             $trace = Z::tap(debug_backtrace(), function (&$trace) {
                 $_trace = ('Zls_Dao' == Z::arrayGet($trace, '1.class')) ? $trace[1] : $trace[0];
-                $trace = [
-                    'file' => $_trace['file'],
-                    'line' => $_trace['line'],
-                    'class' => $_trace['class'],
+                $trace  = [
+                    'file'     => $_trace['file'],
+                    'line'     => $_trace['line'],
+                    'class'    => $_trace['class'],
                     'function' => $_trace['function'],
                 ];
             });
@@ -4083,19 +4096,19 @@ abstract class Zls_Database
         if (!$this->_init()) {
             return false;
         }
-        $startTime = Z::microtime();
-        $sql = $sql ? $this->_checkPrefixIdentifier($sql) : $this->getSql();
+        $startTime      = Z::microtime();
+        $sql            = $sql ? $this->_checkPrefixIdentifier($sql) : $this->getSql();
         $this->_lastSql = $sql;
-        $values = !empty($values) ? $values : $this->_getValues();
+        $values         = !empty($values) ? $values : $this->_getValues();
         $cacheHandle = null;
         if (is_numeric($this->_cacheTime)) {
             $cacheHandle = Z::config()->getCacheHandle();
             Z::throwIf(empty($cacheHandle), 500, 'no cache handle found , please set cache handle', 'ERROR');
-            $key = empty($this->_cacheKey) ? md5($sql.var_export($values, true)) : $this->_cacheKey;
+            $key = empty($this->_cacheKey) ? md5($sql . var_export($values, true)) : $this->_cacheKey;
             if ($this->_cacheTime > 0) {
                 $return = $cacheHandle->get($key);
                 if (!is_null($return)) {
-                    $this->_cacheKey = '';
+                    $this->_cacheKey  = '';
                     $this->_cacheTime = null;
                     $this->_reset();
                     return $return;
@@ -4104,18 +4117,18 @@ abstract class Zls_Database
                 $cacheHandle->delete($key);
             }
         }
-        $isWriteType = $this->_isWriteType($sql);
-        $isWritetRowsType = $this->_isWriteRowsType($sql);
+        $isWriteType       = $this->_isWriteType($sql);
+        $isWritetRowsType  = $this->_isWriteRowsType($sql);
         $isWriteInsertType = $this->_isWriteInsertType($sql);
-        $return = false;
+        $return            = false;
         try {
             if ($this->_isInTransaction) {
-                $pdo = &$this->_masterPdo;
+                $pdo                    = &$this->_masterPdo;
                 $this->_lastPdoInstance = &$pdo;
                 if ($sth = $pdo->prepare($sql)) {
                     if ($isWriteType) {
-                        $status = $sth->execute($values);
-                        $return = $isWritetRowsType ? $sth->rowCount() : $status;
+                        $status              = $sth->execute($values);
+                        $return              = $isWritetRowsType ? $sth->rowCount() : $status;
                         $this->_lastInsertId = $isWriteInsertType ? $pdo->lastInsertId() : 0;
                     } else {
                         $return = $sth->execute($values) ? $sth->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -4138,8 +4151,8 @@ abstract class Zls_Database
                 $this->_lastPdoInstance = &$pdo;
                 if ($sth = @$pdo->prepare($sql)) {
                     if ($isWriteType) {
-                        $status = $sth->execute($values);
-                        $return = $isWritetRowsType ? $sth->rowCount() : $status;
+                        $status              = $sth->execute($values);
+                        $return              = $isWritetRowsType ? $sth->rowCount() : $status;
                         $this->_lastInsertId = $isWriteInsertType ? $pdo->lastInsertId() : 0;
                     } else {
                         $return = $sth->execute($values) ? $sth->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -4150,11 +4163,11 @@ abstract class Zls_Database
                     $this->_displayError($errorInfo[2], $errorInfo[1]);
                 }
             }
-            $usingTime = (Z::microtime() - $startTime).'';
+            $usingTime = (Z::microtime() - $startTime) . '';
             $explainRows = [];
             if ($this->_isMysql() && ($this->slowQueryDebug || $this->indexDebug) && (($this->_isExplain56Type($sql) && $this->versionThan56) || ($this->_isExplainType($sql) && !$this->versionThan56))) {
                 reset($this->connectionMasters);
-                $sth = $this->connectionMasters[key($this->connectionMasters)]->prepare('EXPLAIN '.$sql);
+                $sth = $this->connectionMasters[key($this->connectionMasters)]->prepare('EXPLAIN ' . $sql);
                 $sth->execute($values);
                 $explainRows = $sth->fetchAll(PDO::FETCH_ASSOC);
             }
@@ -4167,18 +4180,18 @@ abstract class Zls_Database
                 $badIndex = false;
                 if ($this->_isMysql()) {
                     $order = [
-                        'system' => 1,
-                        'const' => 2,
-                        'eq_ref' => 3,
-                        'ref' => 4,
-                        'fulltext' => 5,
-                        'ref_or_null' => 6,
-                        'index_merge' => 7,
+                        'system'          => 1,
+                        'const'           => 2,
+                        'eq_ref'          => 3,
+                        'ref'             => 4,
+                        'fulltext'        => 5,
+                        'ref_or_null'     => 6,
+                        'index_merge'     => 7,
                         'unique_subquery' => 8,
-                        'index_subquery' => 9,
-                        'range' => 10,
-                        'index' => 11,
-                        'all' => 12,
+                        'index_subquery'  => 9,
+                        'range'           => 10,
+                        'index'           => 11,
+                        'all'             => 12,
                     ];
                     foreach ($explainRows as $row) {
                         if (Z::arrayKeyExists(
@@ -4187,7 +4200,7 @@ abstract class Zls_Database
                             )
                             && Z::arrayKeyExists(strtolower($this->getMinIndexType()), $order)
                         ) {
-                            $key = $order[strtolower($row['type'])];
+                            $key    = $order[strtolower($row['type'])];
                             $minKey = $order[strtolower($this->getMinIndexType())];
                             if ($key > $minKey) {
                                 if (false === stripos($row['Extra'], 'optimized')) {
@@ -4203,18 +4216,18 @@ abstract class Zls_Database
                 }
             }
             if (!is_null($this->_cacheTime) && (bool)$return->row()) {
-                $key = empty($this->_cacheKey) ? md5($sql.var_export($values, true)) : $this->_cacheKey;
+                $key = empty($this->_cacheKey) ? md5($sql . var_export($values, true)) : $this->_cacheKey;
                 if ($this->_cacheTime > 0) {
                     $cacheHandle->set($key, $return, $this->_cacheTime);
                 } else {
                     $cacheHandle->delete($key);
                 }
             }
-            $this->_cacheKey = '';
+            $this->_cacheKey  = '';
             $this->_cacheTime = null;
             $this->_reset();
         } catch (\Exception $e) {
-            if ($reconnection&&stristr($e->getMessage(), 'server has gone away')) {
+            if ($reconnection && stristr($e->getMessage(), 'server has gone away')) {
                 $this->close();
                 return $this->execute($sql, $values, false);
             } else {
@@ -4225,12 +4238,12 @@ abstract class Zls_Database
         if ($this->_isMysql() && true == Z::config()->getTraceStatus()) {
             if (preg_match('/SELECT /ims', $sql)) {
                 try {
-                    $trace['runtime'] = (Z::microtime() - $startTime).'ms';
-                    $trace['time'] = date('Y-m-d H:i:s');
-                    $sth = @$pdo->prepare('EXPLAIN '.$sql);
-                    $sql = str_replace("\n", ' ', $sql);
-                    $arr = $sth->execute($values) ? $sth->fetch(PDO::FETCH_ASSOC) : [];
-                    $this->_traceRes = $trace + $arr + ['Values' => implode(',', $values), 'SQL' => $sql];
+                    $trace['runtime'] = (Z::microtime() - $startTime) . 'ms';
+                    $trace['time']    = date('Y-m-d H:i:s');
+                    $sth              = @$pdo->prepare('EXPLAIN ' . $sql);
+                    $sql              = str_replace("\n", ' ', $sql);
+                    $arr              = $sth->execute($values) ? $sth->fetch(PDO::FETCH_ASSOC) : [];
+                    $this->_traceRes  = $trace + $arr + ['Values' => implode(',', $values), 'SQL' => $sql];
                     if (true == $this->getTrace()) {
                         $this->trace();
                     }
@@ -4242,7 +4255,7 @@ abstract class Zls_Database
     }
     private function _checkPrefixIdentifier($str)
     {
-        $prefix = $this->getTablePrefix();
+        $prefix     = $this->getTablePrefix();
         $identifier = $this->getTablePrefixSqlIdentifier();
         return $identifier ? str_replace($identifier, $prefix, $str) : $str;
     }
@@ -4329,6 +4342,14 @@ abstract class Zls_Database
         $this->minIndexType = $minIndexType;
         return $this;
     }
+    public function close()
+    {
+        $this->_masterPdo        = null;
+        $this->_lastPdoInstance  = null;
+        $this->connectionMasters = [];
+        $this->connectionSlaves  = [];
+        return $this;
+    }
     public function getTrace()
     {
         return $this->trace;
@@ -4350,7 +4371,7 @@ abstract class Zls_Database
  * @method void before($method, $controllerShort, $controller, $args)
  * @method string after($method, $args, $contents)
  * @method string call($method, $controllerShort, $args, $controller)
- * @method string execute($next,$method, $controllerShort, $args, $controller)
+ * @method string execute($next, $method, $controllerShort, $args, $controller)
  */
 abstract class Zls_Controller
 {
@@ -4363,7 +4384,7 @@ abstract class Zls_Business
 }
 abstract class Zls_Task
 {
-    protected $debug      = false;
+    protected $debug = false;
     protected $debugError = false;
     /**
      * Zls_Task constructor
@@ -4371,32 +4392,32 @@ abstract class Zls_Task
     public function __construct()
     {
         Z::throwIf(!Z::isCli(), 500, 'Task only in cli mode', 'ERROR');
-        $args = Z::getOpt();
-        $this->debug = Z::arrayGet($args, 'debug');
+        $args             = Z::getOpt();
+        $this->debug      = Z::arrayGet($args, 'debug');
         $this->debugError = Z::arrayGet($args, 'debug-error');
     }
     public function _execute($args)
     {
         $startTime = Z::microtime();
-        $class = get_class($this);
+        $class     = get_class($this);
         if ($this->debugError) {
-            $_startTime = date('Y-m-d H:i:s.').substr($startTime.'', strlen($startTime.'') - 3);
-            $error = $this->execute($args);
+            $_startTime = date('Y-m-d H:i:s.') . substr($startTime . '', strlen($startTime . '') - 3);
+            $error      = $this->execute($args);
             if ($error) {
-                $this->_log('Task [ '.$class.' ] execute failed , started at [ '.$_startTime.' ], use time '.(Z::microtime() - $startTime).' ms , exited with error : [ '.$error.' ]');
+                $this->_log('Task [ ' . $class . ' ] execute failed , started at [ ' . $_startTime . ' ], use time ' . (Z::microtime() - $startTime) . ' ms , exited with error : [ ' . $error . ' ]');
             }
         } else {
-            $this->_log('Task [ '.$class.' ] start');
+            $this->_log('Task [ ' . $class . ' ] start');
             $this->execute($args);
-            $this->_log('Task [ '.$class.' ] end , use time '.(Z::microtime() - $startTime).' ms');
+            $this->_log('Task [ ' . $class . ' ] end , use time ' . (Z::microtime() - $startTime) . ' ms');
         }
     }
     abstract public function execute($args);
     public function _log($msg, $time = true)
     {
         if ($this->debug || $this->debugError) {
-            $nowTime = ''.Z::microtime();
-            echo($time ? date('[Y-m-d H:i:s.'.substr($nowTime, strlen($nowTime) - 3).']').' [PID:'.sprintf('%- 5d', getmypid()).'] ' : '').$msg."\n";
+            $nowTime = '' . Z::microtime();
+            echo ($time ? date('[Y-m-d H:i:s.' . substr($nowTime, strlen($nowTime) - 3) . ']') . ' [PID:' . sprintf('%- 5d', getmypid()) . '] ' : '') . $msg . "\n";
         }
     }
     /**
@@ -4406,9 +4427,9 @@ abstract class Zls_Task
     final public function pidIsExists($pid)
     {
         if (PATH_SEPARATOR == ':') {
-            return trim(Z::command('ps ax | awk \'{ print $1 }\' | grep -e "^'.$pid.'$"', '', true, false), "\n") == $pid;
+            return trim(Z::command('ps ax | awk \'{ print $1 }\' | grep -e "^' . $pid . '$"', '', true, false), "\n") == $pid;
         } else {
-            return preg_match('/\t?\s?'.$pid.'\t?\s?/', Z::command('tasklist /NH /FI "PID eq '.$pid.'"'));
+            return preg_match('/\t?\s?' . $pid . '\t?\s?/', Z::command('tasklist /NH /FI "PID eq ' . $pid . '"'));
         }
     }
 }
@@ -4421,16 +4442,13 @@ class Zls_Router_PathInfo extends Zls_Router
         $this->isPathinfo = $isPathinfo;
     }
     /**
-     * @param null $uri
      * @return \Zls_Route
      */
-    public function find($uri = null)
+    public function find()
     {
         $config = Zls::getConfig();
-        if (is_null($uri)) {
-            $uri = $config->getRequest()->getPathInfo();
-        }
-        $uri = trim($uri, '/') ?: z::get('s');
+        $uri = $config->getRequest()->getPathInfo();
+        $uri = trim($uri, '/') ?: z::get('_s');
         $_hmvcModule = $config->getCurrentDomainHmvcModuleNname();
         if (empty($uri) && empty($_hmvcModule)) {
             return $this->route->setFound(false);
@@ -4439,7 +4457,7 @@ class Zls_Router_PathInfo extends Zls_Router
                 $uri = $uriRewriter->rewrite($uri);
             }
         }
-        $_info = explode('/', $uri);
+        $_info      = explode('/', $uri);
         $hmvcModule = current($_info);
         if (!$_hmvcModule) {
             if ($config->hmvcIsDomainOnly($hmvcModule)) {
@@ -4453,15 +4471,15 @@ class Zls_Router_PathInfo extends Zls_Router
             $uri = ltrim(substr($uri, strlen($hmvcModule)), '/');
         }
         $controller = $config->getDefaultController();
-        $method = $config->getDefaultMethod();
-        $subfix = $config->getMethodUriSubfix();
+        $method     = $config->getDefaultMethod();
+        $subfix     = $config->getMethodUriSubfix();
         if ($uri) {
             if ($subfix) {
                 $methodPathArr = explode($subfix, $uri);
                 if (Z::strEndsWith($uri, $subfix)) {
                     if (false !== stripos($methodPathArr[0], '/')) {
                         $controller = str_replace('/', '_', dirname($uri));
-                        $method = basename($methodPathArr[0]);
+                        $method     = basename($methodPathArr[0]);
                     } else {
                         $method = basename($methodPathArr[0]);
                     }
@@ -4471,16 +4489,16 @@ class Zls_Router_PathInfo extends Zls_Router
             } else {
                 $methodPathArr = explode('/', $uri);
                 if (count($methodPathArr) > 1) {
-                    $method = array_pop($methodPathArr);
+                    $method     = array_pop($methodPathArr);
                     $controller = implode('_', $methodPathArr);
                 } else {
                     $controller = $uri;
                 }
             }
         }
-        $controller = $config->getControllerDirName().'_'.$controller;
+        $controller          = $config->getControllerDirName() . '_' . $controller;
         $methodAndParameters = explode($config->getMethodParametersDelimiter(), $method);
-        $method = $config->getMethodPrefix().current($methodAndParameters);
+        $method              = $config->getMethodPrefix() . current($methodAndParameters);
         array_shift($methodAndParameters);
         $parameters = $methodAndParameters;
         $hmvcModule = $hmvcModuleDirName ? $hmvcModule : '';
@@ -4490,17 +4508,17 @@ class Zls_Router_PathInfo extends Zls_Router
     {
         $config = Z::config();
         if (!$action) {
-            $route = z::config()->getRoute();
-            $action = $route->getControllerShort().'/'.$route->getMethodShort();
+            $route  = z::config()->getRoute();
+            $action = $route->getControllerShort() . '/' . $route->getMethodShort();
         } else {
-            $action= ltrim($action, '/');
+            $action = ltrim($action, '/');
         }
-        $isPathinfo = null !== $config->getRequest()->getPathInfo();
+        $isPathinfo      = null !== $config->getRequest()->getPathInfo();
         $MethodUriSubfix = $config->getMethodUriSubfix();
-        $SubfixStatus = $isPathinfo ? Z::arrayGet($opt, 'subfix', false) : false;
-        $isHmvc = Z::arrayGet($opt, 'ishmvc', false);
-        if (($action&&$action!=='/')&&true === $SubfixStatus && !Z::strEndsWith($action, $MethodUriSubfix)) {
-            $action = $action.$MethodUriSubfix;
+        $SubfixStatus    = $isPathinfo ? Z::arrayGet($opt, 'subfix', false) : false;
+        $isHmvc          = Z::arrayGet($opt, 'ishmvc', false);
+        if (($action && $action !== '/') && true === $SubfixStatus && !Z::strEndsWith($action, $MethodUriSubfix)) {
+            $action = $action . $MethodUriSubfix;
         }
         if (true === $isHmvc) {
             $hmvcModules = $config->getHmvcModules();
@@ -4510,29 +4528,29 @@ class Zls_Router_PathInfo extends Zls_Router
                 null
             ) ? $config->getRoute()->getHmvcModuleName() : '';
             if ($hmvcDirName) {
-                $action = $hmvcDirName.'/'.$action;
+                $action = $hmvcDirName . '/' . $action;
             }
         }
         $hmvcModuleName = $config->getCurrentDomainHmvcModuleNname();
         if ($hmvcModuleName && $config->hmvcIsDomainOnly($hmvcModuleName)) {
-            $action = preg_replace('|^'.$hmvcModuleName.'/?|', '/', $action);
+            $action = preg_replace('|^' . $hmvcModuleName . '/?|', '/', $action);
         }
         $root = !Z::strBeginsWith($action, './');
         if (!$root) {
             $action = substr($action, 2);
         }
-        $index = $config->getIsRewrite() ?($root ? '/':'') : ($root ? '/'.ZLS_INDEX_NAME : ZLS_INDEX_NAME.'/');
+        $index = $config->getIsRewrite() ? ($root ? '/' : '') : ($root ? '/' . ZLS_INDEX_NAME : ZLS_INDEX_NAME . '/');
         if ($isPathinfo) {
-            $url = $index.$action;
+            $url = $index . $action;
         } else {
-            $url = $root ? $index.'?s='.$action : '/'.$index.'?s='.$action;
+            $url = $root ? $index . '?s=' . $action : '/' . $index . '?s=' . $action;
         }
         $url = rtrim($url, '/');
-        $url = $index ? $url : ($action ? $url : $url.'/');
+        $url = $index ? $url : ($action ? $url : $url . '/');
         if (!empty($getData)) {
-            $url = $url.($isPathinfo ? '?' : '&');
+            $url = $url . ($isPathinfo ? '?' : '&');
             foreach ($getData as $k => $v) {
-                $url .= $k.'='.urlencode($v).'&';
+                $url .= $k . '=' . urlencode($v) . '&';
             }
             $url = rtrim($url, '&');
         }
@@ -4540,7 +4558,7 @@ class Zls_Router_PathInfo extends Zls_Router
             $requestUri = Z::tap(explode($config->getRequest()->getPathInfo() ?: '/', $requestUri), function ($v) {
                 return Z::arrayGet($v, 0);
             });
-            $url = Z::strBeginsWith($url, $requestUri) ? $url : $requestUri.$url;
+            $url        = Z::strBeginsWith($url, $requestUri) ? $url : $requestUri . $url;
         }
         return $url;
     }
@@ -4549,58 +4567,58 @@ abstract class Zls_Task_Single extends Zls_Task
 {
     public function _execute($args)
     {
-        $class = get_class($this);
+        $class     = get_class($this);
         $startTime = Z::microtime();
-        $this->_log('Single Task [ '.$class.' ] start');
+        $this->_log('Single Task [ ' . $class . ' ] start');
         $lockFilePath = Z::arrayGet($args, 'pid');
         if (!$lockFilePath) {
-            $tempDirPath = Z::config()->getStorageDirPath();
-            $key = md5(
-                Z::config()->getAppDir().Z::config()->getClassesDirName().'/'
-                .Z::config()->getTaskDirName().'/'.str_replace('_', '/', get_class($this)).'.php'
+            $tempDirPath  = Z::config()->getStorageDirPath();
+            $key          = md5(
+                Z::config()->getAppDir() . Z::config()->getClassesDirName() . '/'
+                . Z::config()->getTaskDirName() . '/' . str_replace('_', '/', get_class($this)) . '.php'
             );
-            $lockFilePath = Z::realPathMkdir($tempDirPath.'taskSingle').'/'.$key.'.pid';
+            $lockFilePath = Z::realPathMkdir($tempDirPath . 'taskSingle') . '/' . $key . '.pid';
         }
         if (file_exists($lockFilePath)) {
             $pid = file_get_contents($lockFilePath);
             if ($this->pidIsExists($pid)) {
-                $this->_log('Single Task [ '.$class.' ] is running with pid '.$pid.' , now exiting...');
-                $this->_log('Single Task [ '.$class.' ] end , use time '.(Z::microtime() - $startTime).' ms');
+                $this->_log('Single Task [ ' . $class . ' ] is running with pid ' . $pid . ' , now exiting...');
+                $this->_log('Single Task [ ' . $class . ' ] end , use time ' . (Z::microtime() - $startTime) . ' ms');
                 Z::end();
             }
         }
-        Z::throwIf(false === file_put_contents($lockFilePath, getmypid()), 500, 'can not create file : [ '.$lockFilePath.' ]', 'ERROR');
-        $this->_log('update pid file [ '.$lockFilePath.' ]');
+        Z::throwIf(false === file_put_contents($lockFilePath, getmypid()), 500, 'can not create file : [ ' . $lockFilePath . ' ]', 'ERROR');
+        $this->_log('update pid file [ ' . $lockFilePath . ' ]');
         $this->execute($args);
         @unlink($lockFilePath);
-        $this->_log('clean pid file [ '.$lockFilePath.' ]');
-        $this->_log('Single Task [ '.$class.' ] end , use time '.(Z::microtime() - $startTime).' ms');
+        $this->_log('clean pid file [ ' . $lockFilePath . ' ]');
+        $this->_log('Single Task [ ' . $class . ' ] end , use time ' . (Z::microtime() - $startTime) . ' ms');
     }
 }
 abstract class Zls_Task_Multiple extends Zls_Task
 {
     public function _execute($args)
     {
-        $class = get_class($this);
+        $class     = get_class($this);
         $startTime = Z::microtime();
-        $this->_log('Multiple Task [ '.$class.' ] start');
+        $this->_log('Multiple Task [ ' . $class . ' ] start');
         $lockFilePath = Z::arrayGet($args, 'pid');
         if (!$lockFilePath) {
-            $tempDirPath = Z::config()->getStorageDirPath();
-            $key = md5(Z::config()->getAppDir().Z::config()->getClassesDirName().'/'.Z::config()->getTaskDirName().'/'.str_replace('_', '/', get_class($this)).'.php');
-            $lockFilePath = Z::realPathMkdir($tempDirPath.'taskMultiple').'/'.$key.'.pid';
+            $tempDirPath  = Z::config()->getStorageDirPath();
+            $key          = md5(Z::config()->getAppDir() . Z::config()->getClassesDirName() . '/' . Z::config()->getTaskDirName() . '/' . str_replace('_', '/', get_class($this)) . '.php');
+            $lockFilePath = Z::realPathMkdir($tempDirPath . 'taskMultiple') . '/' . $key . '.pid';
         }
         $alivedPids = [];
         if (file_exists($lockFilePath)) {
             $count = 0;
-            $pids = explode("\n", file_get_contents($lockFilePath));
+            $pids  = explode("\n", file_get_contents($lockFilePath));
             foreach ($pids as $pid) {
                 if ($pid = (int)$pid) {
                     if ($this->pidIsExists($pid)) {
                         $alivedPids[] = $pid;
                         if (++$count > $this->getMaxCount() - 1) {
-                            $this->_log('Multiple Task [ '.$class.' ] reach max count : '.$this->getMaxCount().' , now exiting...');
-                            $this->_log('Multiple Task [ '.$class.' ] end , use time '.(Z::microtime() - $startTime).' ms');
+                            $this->_log('Multiple Task [ ' . $class . ' ] reach max count : ' . $this->getMaxCount() . ' , now exiting...');
+                            $this->_log('Multiple Task [ ' . $class . ' ] end , use time ' . (Z::microtime() - $startTime) . ' ms');
                             Z::end();
                         }
                     }
@@ -4608,11 +4626,11 @@ abstract class Zls_Task_Multiple extends Zls_Task
             }
         }
         $alivedPids[] = getmypid();
-        Z::throwIf(false === file_put_contents($lockFilePath, implode("\n", $alivedPids)), 500, 'can not create file : [ '.$lockFilePath.' ]', 'ERROR');
-        $this->_log('update pid file [ '.$lockFilePath.' ]');
+        Z::throwIf(false === file_put_contents($lockFilePath, implode("\n", $alivedPids)), 500, 'can not create file : [ ' . $lockFilePath . ' ]', 'ERROR');
+        $this->_log('update pid file [ ' . $lockFilePath . ' ]');
         $this->execute($args);
-        $this->_log('clean pid file [ '.$lockFilePath.' ]');
-        $this->_log('Multiple Task [ '.$class.' ] end , use time '.(Z::microtime() - $startTime).' ms');
+        $this->_log('clean pid file [ ' . $lockFilePath . ' ]');
+        $this->_log('Multiple Task [ ' . $class . ' ] end , use time ' . (Z::microtime() - $startTime) . ' ms');
     }
     abstract protected function getMaxCount();
 }
@@ -4634,7 +4652,7 @@ abstract class Zls_Router
      * @return \Zls_Route
      */
     abstract public function find();
-    abstract public function url();
+    abstract public function url($action = '', $getData = [], $opt = []);
     public function &route()
     {
         return $this->route;
@@ -4649,16 +4667,16 @@ abstract class Zls_Exception extends \Exception
     protected $errorType;
     protected $trace;
     protected $httpStatusLine = 'HTTP/1.0 500 Internal Server Error';
-    protected $exceptionName  = 'Zls_Exception';
+    protected $exceptionName = 'Zls_Exception';
     public function __construct($errorMessage = '', $errorCode = 0, $errorType = 'Exception', $errorFile = '', $errorLine = '0')
     {
         parent::__construct($errorMessage, $errorCode);
         $this->errorMessage = $errorMessage;
-        $this->errorCode = $errorCode;
-        $this->errorType = $errorType;
-        $this->errorFile = Z::realPath($errorFile);
-        $this->errorLine = $errorLine;
-        $this->trace = debug_backtrace(false);
+        $this->errorCode    = $errorCode;
+        $this->errorType    = $errorType;
+        $this->errorFile    = Z::realPath($errorFile);
+        $this->errorLine    = $errorLine;
+        $this->trace        = debug_backtrace(false);
         if (in_array($errorCode, [500, 404])) {
             Z::header(404 === $errorCode ? 'HTTP/1.1 404 Not Found' : 'HTTP/1.1 500 Internal Server Error');
         }
@@ -4678,7 +4696,7 @@ abstract class Zls_Exception extends \Exception
     private function getTraceString($isCli)
     {
         $trace = array_reverse($this->trace);
-        $str = $isCli ? "[ Debug Backtrace ]\n" : '<div style="padding:10px">[ Debug Backtrace ]<br/>';
+        $str   = $isCli ? "[ Debug Backtrace ]\n" : '<div style="padding:10px">[ Debug Backtrace ]<br/>';
         if (empty($trace)) {
             return '';
         }
@@ -4687,7 +4705,7 @@ abstract class Zls_Exception extends \Exception
             $file = Z::safePath(Z::arrayGet($e, 'file'));
             $line = Z::arrayGet($e, 'line');
             $func = (!empty($e['class']) ? "{$e['class']}{$e['type']}{$e['function']}()" : "{$e['function']}()");
-            $str .= ''.($i++).".{$func} ".($line ? "[ line:{$line} {$file} ]" : '').($isCli ? "\n" : '<br/>');
+            $str  .= '' . ($i++) . ".{$func} " . ($line ? "[ line:{$line} {$file} ]" : '') . ($isCli ? "\n" : '<br/>');
         }
         $str .= $isCli ? "\n" : '</div>';
         return $str;
@@ -4725,24 +4743,25 @@ abstract class Zls_Exception extends \Exception
         } elseif ($isCli) {
             $string = $this->renderCli();
         } else {
-            $string = str_replace('</body>', $this->getTraceString($isCli).'</body>', $this->renderHtml());
+            $string = str_replace('</body>', $this->getTraceString($isCli) . '</body>', $this->renderHtml());
         }
         return !$return ? Z::end($string) : $string;
     }
-    public function renderHtml()
+    public function renderJson()
+    {
+        $render = Zls::getConfig()->getExceptionJsonRender();
+        if (is_callable($render)) {
+            return $render($this);
+        }
+        return '';
+    }
+    /**
+     * @return string
+     */
+    public function renderCli()
     {
         $run = z::debug(false, false, true, false);
-        return '<html><meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"><body style="line-height:30px;padding:0;margin:0;background:#0C8611;color:whitesmoke;font-family:\'Courier New\',monospace;font-size:18px;">'
-            .'<div style="padding:10px;background:#104411;color:#4CAF50;font-size:25px;font-weight:bold;">'.$this->exceptionName.' - [ '.$this->getErrorType().' ] </div>'
-            .'<div style="padding:10px;color:yellow;">'
-            .'<strong>Environment: </strong>
-'.$this->getEnvironment().'<br/>'
-            .'<strong>Line: </strong>'.$this->getErrorLine().' [ '.$this->getErrorFile(true).' ]<br/>'
-            .'<strong>Message: </strong>'.htmlspecialchars($this->getErrorMessage()).'</br>'
-            .'<strong>Time: </strong>'.date('Y/m/d H:i:s T').'</br>'
-            .'<strong>WasteTime: </strong>'.$run['runtime'].'</br>'
-            .'<strong>Memory: </strong>'.$run['memory'].'</div>'
-            .'</body></html>';
+        return $this->exceptionName . ' [ ' . $this->getErrorType() . ' ]' . PHP_EOL . 'Environment: ' . $this->getEnvironment() . PHP_EOL . 'Line: ' . $this->getErrorLine() . '. ' . $this->getErrorFile() . PHP_EOL . 'Message: ' . $this->getErrorMessage() . PHP_EOL . 'Time: ' . date('Y/m/d H:i:s T') . PHP_EOL . 'WasteTime: ' . $run['runtime'] . PHP_EOL . 'Memory: ' . $run['memory'] . PHP_EOL . 'Trace: ' . $this->getTraceCliString() . PHP_EOL;
     }
     public function getErrorType()
     {
@@ -4750,19 +4769,19 @@ abstract class Zls_Exception extends \Exception
     }
     public function errorType2string($errorType)
     {
-        $value = $errorType;
+        $value      = $errorType;
         $levelNames = [
-            E_ERROR => 'ERROR',
-            E_WARNING => 'WARNING',
-            E_PARSE => 'PARSE',
-            E_NOTICE => 'NOTICE',
-            E_CORE_ERROR => 'CORE_ERROR',
-            E_CORE_WARNING => 'CORE_WARNING',
-            E_COMPILE_ERROR => 'COMPILE_ERROR',
+            E_ERROR           => 'ERROR',
+            E_WARNING         => 'WARNING',
+            E_PARSE           => 'PARSE',
+            E_NOTICE          => 'NOTICE',
+            E_CORE_ERROR      => 'CORE_ERROR',
+            E_CORE_WARNING    => 'CORE_WARNING',
+            E_COMPILE_ERROR   => 'COMPILE_ERROR',
             E_COMPILE_WARNING => 'COMPILE_WARNING',
-            E_USER_ERROR => 'USER_ERROR',
-            E_USER_WARNING => 'USER_WARNING',
-            E_USER_NOTICE => 'USER_NOTICE',
+            E_USER_ERROR      => 'USER_ERROR',
+            E_USER_WARNING    => 'USER_WARNING',
+            E_USER_NOTICE     => 'USER_NOTICE',
         ];
         if (defined('E_STRICT')) {
             $levelNames[E_STRICT] = 'STRICT';
@@ -4779,7 +4798,7 @@ abstract class Zls_Exception extends \Exception
         $levels = [];
         if (E_ALL == ($value & E_ALL)) {
             $levels[] = 'E_ALL';
-            $value &= ~E_ALL;
+            $value    &= ~E_ALL;
         }
         foreach ($levelNames as $level => $name) {
             if (($value & $level) == $level) {
@@ -4815,28 +4834,27 @@ abstract class Zls_Exception extends \Exception
     {
         return $this->errorMessage ? $this->errorMessage : $this->getMessage();
     }
-    public function renderJson()
-    {
-        $render = Zls::getConfig()->getExceptionJsonRender();
-        if (is_callable($render)) {
-            return $render($this);
-        }
-        return '';
-    }
-    /**
-     * @return string
-     */
-    public function renderCli()
-    {
-        $run = z::debug(false, false, true, false);
-        return $this->exceptionName.' [ '.$this->getErrorType().' ]'.PHP_EOL.'Environment: '.$this->getEnvironment().PHP_EOL.'Line: '.$this->getErrorLine().'. '.$this->getErrorFile().PHP_EOL.'Message: '.$this->getErrorMessage().PHP_EOL.'Time: '.date('Y/m/d H:i:s T').PHP_EOL.'WasteTime: '.$run['runtime'].PHP_EOL.'Memory: '.$run['memory'].PHP_EOL.'Trace: '.$this->getTraceCliString().PHP_EOL;
-    }
     /**
      * @return string
      */
     public function getTraceCliString()
     {
         return $this->getTraceString(true);
+    }
+    public function renderHtml()
+    {
+        $run = z::debug(false, false, true, false);
+        return '<html><meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"><body style="line-height:30px;padding:0;margin:0;background:#0C8611;color:whitesmoke;font-family:\'Courier New\',monospace;font-size:18px;">'
+            . '<div style="padding:10px;background:#104411;color:#4CAF50;font-size:25px;font-weight:bold;">' . $this->exceptionName . ' - [ ' . $this->getErrorType() . ' ] </div>'
+            . '<div style="padding:10px;color:yellow;">'
+            . '<strong>Environment: </strong>
+' . $this->getEnvironment() . '<br/>'
+            . '<strong>Line: </strong>' . $this->getErrorLine() . ' [ ' . $this->getErrorFile(true) . ' ]<br/>'
+            . '<strong>Message: </strong>' . htmlspecialchars($this->getErrorMessage()) . '</br>'
+            . '<strong>Time: </strong>' . date('Y/m/d H:i:s T') . '</br>'
+            . '<strong>WasteTime: </strong>' . $run['runtime'] . '</br>'
+            . '<strong>Memory: </strong>' . $run['memory'] . '</div>'
+            . '</body></html>';
     }
 }
 abstract class Zls_Session implements \SessionHandlerInterface
@@ -4869,7 +4887,7 @@ abstract class Zls_Session implements \SessionHandlerInterface
 }
 class Zls_Exception_404 extends Zls_Exception
 {
-    protected $exceptionName  = 'Zls_Exception_404';
+    protected $exceptionName = 'Zls_Exception_404';
     protected $httpStatusLine = 'HTTP/1.0 404 Not Found';
     public function __construct($errorMessage = '', $errorCode = 404, $errorType = 'Exception', $errorFile = '', $errorLine = '0')
     {
@@ -4878,19 +4896,19 @@ class Zls_Exception_404 extends Zls_Exception
 }
 class Zls_Exception_500 extends Zls_Exception
 {
-    protected $exceptionName  = 'Zls_Exception_500';
+    protected $exceptionName = 'Zls_Exception_500';
     protected $httpStatusLine = 'HTTP/1.0 500 Internal Server Error';
     public function __construct($errorMessage = '', $errorCode = 500, $errorType = 'Exception', $errorFile = '', $errorLine = '0')
     {
         if ('Class \'Zls_Dao\' not found' === $errorMessage) {
-            $errorMessage = 'Warning: command not installed, Please install "composer require zls/dao"'.PHP_EOL;
+            $errorMessage = 'Warning: command not installed, Please install "composer require zls/dao"' . PHP_EOL;
         }
         parent::__construct($errorMessage, $errorCode, $errorType, $errorFile, $errorLine);
     }
 }
 class Zls_Exception_Database extends Zls_Exception
 {
-    protected $exceptionName  = 'Zls_Exception_Database';
+    protected $exceptionName = 'Zls_Exception_Database';
     protected $httpStatusLine = 'HTTP/1.0 500 Internal Server Error';
     public function __construct($errorMessage = '', $errorCode = 500, $errorType = 'Exception', $errorFile = '', $errorLine = '0')
     {
@@ -4974,22 +4992,22 @@ class Zls_View
      */
     public function load($viewName, $data = [], $return = false)
     {
-        $config = Z::config();
-        $path = $config->getAppDir().$config->getViewsDirName().'/'.$viewName.'.php';
+        $config      = Z::config();
+        $path        = $config->getAppDir() . $config->getViewsDirName() . '/' . $viewName . '.php';
         $hmvcModules = $config->getHmvcModules();
         $hmvcDirName = Z::arrayGet($hmvcModules, $config->getRoute()->getHmvcModuleName(), '');
         if ($hmvcDirName) {
-            $hmvcPath = Z::realPath($config->getPrimaryAppDir().$config->getHmvcDirName().'/'.$hmvcDirName);
-            $trace = debug_backtrace();
+            $hmvcPath       = Z::realPath($config->getPrimaryAppDir() . $config->getHmvcDirName() . '/' . $hmvcDirName);
+            $trace          = debug_backtrace();
             $calledIsInHmvc = false;
-            $appPath = Z::realPath($config->getAppDir());
+            $appPath        = Z::realPath($config->getAppDir());
             foreach ($trace as $t) {
                 $filepath = Z::arrayGet($t, 'file', '');
                 if (!empty($filepath)) {
-                    $filepath = Z::realPath($filepath);
+                    $filepath  = Z::realPath($filepath);
                     $checkList = ['load', 'runWeb', 'message', 'redirect'];
-                    $function = Z::arrayGet($t, 'function', '');
-                    if (($filepath && in_array($function, $checkList) && 0 === strpos($filepath, $appPath)&& 0 === strpos($filepath, $hmvcPath))|| 'handle' == $function) {
+                    $function  = Z::arrayGet($t, 'function', '');
+                    if (($filepath && in_array($function, $checkList) && 0 === strpos($filepath, $appPath) && 0 === strpos($filepath, $hmvcPath)) || 'handle' == $function) {
                         $calledIsInHmvc = true;
                         break;
                     } elseif (!in_array($function, $checkList)) {
@@ -4998,7 +5016,7 @@ class Zls_View
                 }
             }
             if (!$calledIsInHmvc) {
-                $path = $config->getPrimaryAppDir().$config->getViewsDirName().'/'.$viewName.'.php';
+                $path = $config->getPrimaryAppDir() . $config->getViewsDirName() . '/' . $viewName . '.php';
             }
         }
         return $this->loadRaw($path, $data, $return);
@@ -5011,7 +5029,7 @@ class Zls_View
      */
     public function loadRaw($path, $data = [], $return = false)
     {
-        Z::throwIf(!file_exists($path), 500, 'view file : [ '.$path.' ] not found', 'ERROR');
+        Z::throwIf(!file_exists($path), 500, 'view file : [ ' . $path . ' ] not found', 'ERROR');
         $data = array_merge(self::$vars, $data);
         if (!empty($data)) {
             extract($data);
@@ -5036,7 +5054,7 @@ class Zls_View
     public function loadParent($viewName, $data = [], $return = false)
     {
         $config = Z::config();
-        $path = $config->getPrimaryAppDir().$config->getViewsDirName().'/'.$viewName.'.php';
+        $path   = $config->getPrimaryAppDir() . $config->getViewsDirName() . '/' . $viewName . '.php';
         return $this->loadRaw($path, $data, $return);
     }
 }
@@ -5045,7 +5063,7 @@ class Zls_CliArgs
     private $args;
     public function __construct()
     {
-        $args = Z::getOpt();
+        $args       = Z::getOpt();
         $this->args = empty($args) ? [] : $args;
     }
     public function get($key = null, $default = null)
@@ -5097,7 +5115,7 @@ class Zls_Route
     }
     public function getControllerShort()
     {
-        return str_replace('_', '/', preg_replace('/^'.Z::config()->getControllerDirName().'_/', '', $this->getController()));
+        return str_replace('_', '/', preg_replace('/^' . Z::config()->getControllerDirName() . '_/', '', $this->getController()));
     }
     public function getController()
     {
@@ -5110,7 +5128,7 @@ class Zls_Route
     }
     public function getMethodShort()
     {
-        return preg_replace('/^'.Z::config()->getMethodPrefix().'/', '', $this->getMethod());
+        return preg_replace('/^' . Z::config()->getMethodPrefix() . '/', '', $this->getMethod());
     }
     public function getMethod()
     {
@@ -5140,40 +5158,40 @@ class Zls_SeparationRouter extends Zls_Route
      */
     public function find($route, $isHmvcModule)
     {
-        $arg = explode('_', $route);
+        $arg        = explode('_', $route);
         $hmvcModule = array_shift($arg);
         if ($hmvcModule !== $isHmvcModule) {
             return false;
         }
         $document = implode('/', $arg);
-        $appPath = ZLS_APP_PATH.'../';
-        $path = $appPath.'router/'.$hmvcModule.'.json';
+        $appPath  = ZLS_APP_PATH . '../';
+        $path     = $appPath . 'router/' . $hmvcModule . '.json';
         $config = Z::config();
         if (file_exists($path)) {
             $data = @json_decode(file_get_contents($path), true);
-            Z::throwIf(empty($data), 404, 'invalid file format or conte file : [ '.Z::safePath($path).' ]');
+            Z::throwIf(empty($data), 404, 'invalid file format or conte file : [ ' . Z::safePath($path) . ' ]');
             $defaultMethod = Z::arrayGet($data, 'default');
             if (!$document || $document === $config->getDefaultController()) {
                 $document = $defaultMethod;
             }
             $routerMatch = [];
-            $router = Z::arrayGet($data, 'routerList');
-            $viewPath = '';
-            $routerData = $beforeData = [];
+            $router      = Z::arrayGet($data, 'routerList');
+            $viewPath    = '';
+            $routerData  = $beforeData = [];
             $document = strtolower($document);
-            $static = Z::arrayGet($data, 'static');
+            $static   = Z::arrayGet($data, 'static');
             if ((bool)$router) {
                 foreach ($router as $_router => $value) {
                     if (!isset($value['view']) && !isset($value['viewFile'])) {
                         continue;
-                    } elseif (preg_match('/^'.str_replace('/', '\/', $_router).'$/', $document, $routerMatch)) {
-                        $viewPath = Z::arrayGet($value, 'view') ?: Z::arrayGet($value, 'viewFile').'/'.$document;
+                    } elseif (preg_match('/^' . str_replace('/', '\/', $_router) . '$/', $document, $routerMatch)) {
+                        $viewPath   = Z::arrayGet($value, 'view') ?: Z::arrayGet($value, 'viewFile') . '/' . $document;
                         $routerData = $value;
                         break;
-                    } elseif ((bool)$defaultMethod && preg_match('/^'.str_replace('/', '\/', $_router).'$/', $document.'/'.$defaultMethod, $routerMatch)) {
-                        $_viewPath = Z::arrayGet($value, 'view') ?: Z::arrayGet($value, 'viewFile').'/'.$document.'/'.$defaultMethod;
-                        if (is_file($appPath.$_viewPath)) {
-                            $viewPath = $_viewPath;
+                    } elseif ((bool)$defaultMethod && preg_match('/^' . str_replace('/', '\/', $_router) . '$/', $document . '/' . $defaultMethod, $routerMatch)) {
+                        $_viewPath = Z::arrayGet($value, 'view') ?: Z::arrayGet($value, 'viewFile') . '/' . $document . '/' . $defaultMethod;
+                        if (is_file($appPath . $_viewPath)) {
+                            $viewPath   = $_viewPath;
                             $routerData = $value;
                             break;
                         }
@@ -5183,22 +5201,22 @@ class Zls_SeparationRouter extends Zls_Route
             if (!$viewPath) {
                 return false;
             }
-            if (is_dir($view = $appPath.$viewPath)) {
-                $view = $view.'/'.$defaultMethod;
+            if (is_dir($view = $appPath . $viewPath)) {
+                $view = $view . '/' . $defaultMethod;
             }
-            Z::throwIf(!file_exists($view), 404, 'view file : [ '.Z::safePath($view).' ] not found');
+            Z::throwIf(!file_exists($view), 404, 'view file : [ ' . Z::safePath($view) . ' ] not found');
             $pathPrefix = explode('/', $viewPath);
-            $document = array_pop($pathPrefix);
+            $document   = array_pop($pathPrefix);
             $pathPrefix = array_shift($pathPrefix);
             if ($before = Z::arrayGet($data, 'before')) {
-                $rule = explode(':', $before);
+                $rule   = explode(':', $before);
                 $before = Z::business(Z::arrayGet($rule, 0));
                 if ($beforeMethod = Z::arrayGet($rule, 1)) {
                     $beforeData['globalData'] = $before->$beforeMethod($routerMatch, $document, $pathPrefix, $hmvcModule);
                 }
             }
             if ($before = Z::arrayGet($routerData, 'before')) {
-                $rule = explode(':', $before);
+                $rule   = explode(':', $before);
                 $before = Z::business(Z::arrayGet($rule, 0));
                 if ($beforeMethod = Z::arrayGet($rule, 1)) {
                     $beforeData['data'] = $before->$beforeMethod($routerMatch, $document, $pathPrefix, $hmvcModule);
@@ -5210,14 +5228,14 @@ class Zls_SeparationRouter extends Zls_Route
                 $html = Z::view()->loadRaw($view, ['beforeData' => $beforeData], true);
             }
             if ($after = Z::arrayGet($data, 'after')) {
-                $rule = explode(':', $after);
+                $rule  = explode(':', $after);
                 $after = Z::business(Z::arrayGet($rule, 0));
                 if ($afterMethod = Z::arrayGet($rule, 1)) {
                     $html = $after->$afterMethod($html, $routerMatch, $document, $pathPrefix, $hmvcModule);
                 }
             }
             if ($after = Z::arrayGet($routerData, 'after')) {
-                $rule = explode(':', $after);
+                $rule  = explode(':', $after);
                 $after = Z::business(Z::arrayGet($rule, 0));
                 if ($afterMethod = Z::arrayGet($rule, 1)) {
                     $content = $after->$afterMethod($html, $routerMatch, $document, $pathPrefix, $hmvcModule, $document);
@@ -5283,53 +5301,53 @@ class Zls_SeparationRouter extends Zls_Route
  */
 class Zls_Config
 {
-    private static $alias            = [];
-    private $appDir           = '';
-    private $primaryAppDir    = '';
-    private $indexDir         = '';
-    private $commands         = [];
-    private $classesDirName   = 'classes';
-    private $hmvcDirName      = 'hmvc';
-    private $libraryDirName   = 'library';
+    private static $alias = [];
+    private $appDir = '';
+    private $primaryAppDir = '';
+    private $indexDir = '';
+    private $commands = [];
+    private $classesDirName = 'classes';
+    private $hmvcDirName = 'hmvc';
+    private $libraryDirName = 'library';
     private $functionsDirName = 'functions';
-    private $storageDirPath   = '';
-    private $viewsDirName     = 'views';
-    private $configDirName    = 'config';
+    private $storageDirPath = '';
+    private $viewsDirName = 'views';
+    private $configDirName = 'config';
     private $controllerDirName = 'Controller';
-    private $businessDirName            = 'Business';
-    private $daoDirName                 = 'Dao';
-    private $beanDirName                = 'Bean';
-    private $modelDirName               = 'Model';
-    private $taskDirName                = 'Task';
-    private $defaultController          = 'Index';
-    private $defaultMethod              = 'index';
-    private $methodPrefix               = 'z_';
-    private $methodUriSubfix            = '.go';
-    private $methodParametersDelimiter  = '-';
-    private $logsSubDirNameFormat       = 'Y-m-d/H';
-    private $exceptionLevel             = '';
-    private $exceptionControl           = true;
-    private $cookiePrefix               = '';
-    private $backendServerIpWhitelist   = [];
-    private $isRewrite                  = true;
+    private $businessDirName = 'Business';
+    private $daoDirName = 'Dao';
+    private $beanDirName = 'Bean';
+    private $modelDirName = 'Model';
+    private $taskDirName = 'Task';
+    private $defaultController = 'Index';
+    private $defaultMethod = 'index';
+    private $methodPrefix = 'z_';
+    private $methodUriSubfix = '.go';
+    private $methodParametersDelimiter = '-';
+    private $logsSubDirNameFormat = 'Y-m-d/H';
+    private $exceptionLevel = '';
+    private $exceptionControl = true;
+    private $cookiePrefix = '';
+    private $backendServerIpWhitelist = [];
+    private $isRewrite = true;
     private $request;
     private $showError;
-    private $traceStatus                = false;
-    private $routersContainer           = [];
-    private $packageMasterContainer     = [];
-    private $packageContainer           = [];
-    private $loggerWriters              = [];
-    private $logsMaxDay                 = 10;
+    private $traceStatus = false;
+    private $routersContainer = [];
+    private $packageMasterContainer = [];
+    private $packageContainer = [];
+    private $loggerWriters = [];
+    private $logsMaxDay = 10;
     private $uriRewriter;
     private $exceptionHandle;
     private $route;
-    private $environment                = 'production';
-    private $hmvcModules                = [];
+    private $environment = 'production';
+    private $hmvcModules = [];
     private $isMaintainMode;
     private $maintainIpWhitelist;
     private $maintainModeHandle;
     private $databseConfig;
-    private $cacheHandles               = [];
+    private $cacheHandles = [];
     private $cacheConfig;
     private $sessionConfig;
     private $sessionHandle;
@@ -5338,17 +5356,17 @@ class Zls_Config
     private $dataCheckRules;
     private $outputJsonRender;
     private $exceptionJsonRender;
-    private $zMethods                   = [];
+    private $zMethods = [];
     private $encryptKey;
-    private $apiDocToken                = '';
+    private $apiDocToken = '';
     private $exceptionMemoryReserveSize = 256000;
-    private $separationRouter           = false;
-    private $traceStatusCallBack        = null;
-    private $hmvcDomains                = ['enable' => false, 'domains' => []];
+    private $separationRouter = false;
+    private $traceStatusCallBack = null;
+    private $hmvcDomains = ['enable' => false, 'domains' => []];
     private $clientIpConditions
         = [
             'source' => ['REMOTE_ADDR', 'HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP'],
-            'check' => ['HTTP_X_FORWARDED_FOR'],
+            'check'  => ['HTTP_X_FORWARDED_FOR'],
         ];
     /**
      * @return array
@@ -5360,10 +5378,6 @@ class Zls_Config
     public function getMaintainIpWhitelist()
     {
         return $this->getSysConfig($this->maintainIpWhitelist, 'ipWhitelist', []);
-    }
-    public function getApplicationDir()
-    {
-        return $this->appDir;
     }
     /**
      * @param array $maintainIpWhitelist
@@ -5377,7 +5391,7 @@ class Zls_Config
     public function getSysConfig($value, $key, $default = '')
     {
         if (is_null($value)) {
-            $value = z::config()->find('zls') ? Z::config('zls.'.$key) : $default;
+            $value = z::config()->find('zls') ? Z::config('zls.' . $key) : $default;
         }
         return $value;
     }
@@ -5390,9 +5404,9 @@ class Zls_Config
     public function find($filename, $ext = '.php')
     {
         foreach ($this->getPackages() as $packagePath) {
-            $path = $packagePath.$this->getConfigDirName().'/';
-            $filePath = $path.$this->getEnvironment().'/'.$filename.$ext;
-            $fileDefaultPath = $path.'default/'.$filename.$ext;
+            $path            = $packagePath . $this->getConfigDirName() . '/';
+            $filePath        = $path . $this->getEnvironment() . '/' . $filename . $ext;
+            $fileDefaultPath = $path . 'default/' . $filename . $ext;
             if (file_exists($filePath)) {
                 return $filePath;
             } elseif (file_exists($fileDefaultPath)) {
@@ -5411,6 +5425,10 @@ class Zls_Config
             $this->environment = ($env = (($cliEnv = Z::getOpt('env')) ? $cliEnv : Z::arrayGet($_SERVER, 'ENVIRONMENT'))) ? $env : 'production'; //'development'
         }
         return $this->environment;
+    }
+    public function getApplicationDir()
+    {
+        return $this->appDir;
     }
     public function getShowError()
     {
@@ -5447,17 +5465,17 @@ class Zls_Config
         } elseif (!is_null($this->hvmcDomain)) {
             return $this->hvmcDomain;
         }
-        $_domain = Z::server('http_host');
-        $domain = explode('.', $_domain);
-        $length = count($domain);
+        $_domain   = Z::server('http_host');
+        $domain    = explode('.', $_domain);
+        $length    = count($domain);
         $topDomain = '';
         if ($length >= 2) {
-            $topDomain = $domain[$length - 2].'.'.$domain[$length - 1];
+            $topDomain = $domain[$length - 2] . '.' . $domain[$length - 1];
         }
         foreach ($this->hmvcDomains['domains'] as $prefix => $hvmc) {
-            $hvmcDomain = ($hvmc['isFullDomain'] ? $prefix : ($prefix.'.'.$topDomain));
+            $hvmcDomain = ($hvmc['isFullDomain'] ? $prefix : ($prefix . '.' . $topDomain));
             if ((true === z::arrayGet($hvmc, 'isRegEx'))
-                && (preg_match('/^'.$hvmcDomain.'$/', $_domain))
+                && (preg_match('/^' . $hvmcDomain . '$/', $_domain))
             ) {
                 $this->hvmcDomain = $hvmc['enable'] ? $hvmc['hmvcModuleName'] : false;
             } elseif ($hvmcDomain == $_domain) {
@@ -5552,9 +5570,9 @@ class Zls_Config
                     $code = $args[0];
                 }
                 $message = Z::arrayGet($args, 1, '');
-                $data = Z::arrayGet($args, 2, '');
-                $die = Z::arrayGet($args, 3, false);
-                $json = json_encode(
+                $data    = Z::arrayGet($args, 2, '');
+                $die     = Z::arrayGet($args, 3, false);
+                $json    = json_encode(
                     ['code' => $code, 'msg' => $message, 'data' => $data],
                     JSON_UNESCAPED_UNICODE + JSON_UNESCAPED_SLASHES
                 );
@@ -5595,16 +5613,16 @@ class Zls_Config
             $this->cacheConfig = Z::config('cache')
                 ?: [
                     'default_type' => 'file',
-                    'drivers' => ['file' => ['class' => $fileCacheClass, 'config' => Z::config()->getStorageDirPath().'cache/']],
+                    'drivers'      => ['file' => ['class' => $fileCacheClass, 'config' => Z::config()->getStorageDirPath() . 'cache/']],
                 ];
         }
         if (is_array($key)) {
             return z::factory($key['class'], false, false, [$key['config']]);
         } else {
             $key = $key ? $key : $this->cacheConfig['default_type'];
-            Z::throwIf(!Z::arrayKeyExists("drivers.$key", $this->cacheConfig), 500, 'unknown cache type [ '.$key.' ]', 'ERROR');
+            Z::throwIf(!Z::arrayKeyExists("drivers.$key", $this->cacheConfig), 500, 'unknown cache type [ ' . $key . ' ]', 'ERROR');
             $config = $this->cacheConfig['drivers'][$key]['config'];
-            if (!$className = Z::arrayGet($this->cacheConfig, 'drivers.'.$key.'.class')) {
+            if (!$className = Z::arrayGet($this->cacheConfig, 'drivers.' . $key . '.class')) {
                 // 没有缓存类默认文件缓存
                 $className = $fileCacheClass;
             }
@@ -5616,7 +5634,7 @@ class Zls_Config
     }
     public function getStorageDirPath()
     {
-        return empty($this->storageDirPath) ? $this->getPrimaryAppDir().'storage/' : $this->storageDirPath;
+        return empty($this->storageDirPath) ? $this->getPrimaryAppDir() . 'storage/' : $this->storageDirPath;
     }
     public function setStorageDirPath($storageDirPath)
     {
@@ -5651,11 +5669,11 @@ class Zls_Config
     {
         if (empty($this->sessionConfig)) {
             $this->sessionConfig = [
-                'autostart' => false,
-                'cookie_path' => '/',
-                'cookie_domain' => Z::arrayGet(explode(':', Z::server('HTTP_HOST')), 0, Z::server('HTTP_HOST')),
-                'session_name' => 'ZLS',
-                'lifetime' => 86400,
+                'autostart'         => false,
+                'cookie_path'       => '/',
+                'cookie_domain'     => Z::arrayGet(explode(':', Z::server('HTTP_HOST')), 0, Z::server('HTTP_HOST')),
+                'session_name'      => 'ZLS',
+                'lifetime'          => 86400,
                 'session_save_path' => null,
             ];
         }
@@ -5768,7 +5786,7 @@ class Zls_Config
     }
     public function setIndexDir($indexDir)
     {
-        $this->indexDir = Z::realPath($indexDir).'/';
+        $this->indexDir = Z::realPath($indexDir) . '/';
         return $this;
     }
     public function setLoggerWriters(Zls_Logger $loggerWriters)
@@ -5785,10 +5803,10 @@ class Zls_Config
     }
     public function addMasterPackage($packagePath)
     {
-        $packagePath = realpath($packagePath).'/';
+        $packagePath = realpath($packagePath) . '/';
         if (!in_array($packagePath, $this->packageMasterContainer)) {
             array_push($this->packageMasterContainer, $packagePath);
-            if (file_exists($library = $packagePath.$this->getLibraryDirName().'/')) {
+            if (file_exists($library = $packagePath . $this->getLibraryDirName() . '/')) {
                 array_push($this->packageMasterContainer, $library);
             }
         }
@@ -5803,10 +5821,10 @@ class Zls_Config
     }
     public function addPackage($packagePath)
     {
-        $packagePath = Z::realPath($packagePath).'/';
+        $packagePath = Z::realPath($packagePath) . '/';
         if (!in_array($packagePath, $this->packageContainer)) {
             array_push($this->packageContainer, $packagePath);
-            if (file_exists($library = $packagePath.$this->getLibraryDirName().'/')) {
+            if (file_exists($library = $packagePath . $this->getLibraryDirName() . '/')) {
                 array_push($this->packageContainer, $library);
             }
         }
@@ -5823,11 +5841,11 @@ class Zls_Config
             $argName = lcfirst(str_replace('get', '', $method));
             return $this->$argName;
         } elseif (Z::strBeginsWith($method, 'set')) {
-            $argName = lcfirst(str_replace('set', '', $method));
+            $argName        = lcfirst(str_replace('set', '', $method));
             $this->$argName = 1 === count($args) ? $args[0] : $args;
             return $this;
         }
-        Z::throwIf(true, 500, 'Call to undefined method Zls_Config::'.$method.'()');
+        Z::throwIf(true, 500, 'Call to undefined method Zls_Config::' . $method . '()');
         return false;
     }
     /**
@@ -5835,7 +5853,7 @@ class Zls_Config
      */
     public function bootstrap()
     {
-        if (file_exists($bootstrap = $this->getAppDir().'bootstrap.php')) {
+        if (file_exists($bootstrap = $this->getAppDir() . 'bootstrap.php')) {
             if (!Z::isSwoole()) {
                 Z::includeOnce($bootstrap);
             } else {
@@ -5858,7 +5876,7 @@ class Zls_Config
     }
     public function composer()
     {
-        if (!isset($GLOBALS['__composer_autoload_files']) && file_exists($composer = ZLS_APP_PATH.'../vendor/autoload.php')) {
+        if (!isset($GLOBALS['__composer_autoload_files']) && file_exists($composer = ZLS_APP_PATH . '../vendor/autoload.php')) {
             Z::includeOnce($composer);
         }
         return $this;
@@ -5888,10 +5906,7 @@ class Zls_Config
     }
     public function getRouters()
     {
-        if (!$this->routersContainer && !ZLS_RUN_MODE_PLUGIN) {
-            array_unshift($this->routersContainer, Z::factory('Zls_Router_PathInfo', true));
-        }
-        return $this->routersContainer;
+        return array_merge($this->routersContainer, [Z::factory('Zls_Router_PathInfo', true)]);
     }
     /**
      * Zls_Logger
@@ -5923,7 +5938,7 @@ class Zls_Config
             $router = new \Zls_SeparationRouter();
         }
         if ($hmvcModule) {
-            $controller = $hmvcModule.'_'.$controller;
+            $controller = $hmvcModule . '_' . $controller;
         }
         return $router->find(str_replace('Controller_', '', $controller), $hmvcModule);
     }
@@ -5970,11 +5985,11 @@ class Zls_Logger_Dispatcher
      */
     final public function dispatch(\Zls_Exception $exception, $result = false)
     {
-        $error = '';
+        $error  = '';
         $config = Z::config();
         ini_set('display_errors', true);
         $loggerWriters = $config->getLoggerWriters();
-        $AppendError = '';
+        $AppendError   = '';
         try {
             foreach ($loggerWriters as $loggerWriter) {
                 $loggerWriter->write($exception);
@@ -5993,14 +6008,14 @@ class Zls_Logger_Dispatcher
             $error = $exception->render();
         } else {
             $path = [
-                $config->getAppDir().$config->getViewsDirName().'/Error/'.$exception->getErrorCode().'.php',
-                $config->getPrimaryAppDir().$config->getViewsDirName().$exception->getErrorCode().'.php',
+                $config->getAppDir() . $config->getViewsDirName() . '/Error/' . $exception->getErrorCode() . '.php',
+                $config->getPrimaryAppDir() . $config->getViewsDirName() . $exception->getErrorCode() . '.php',
             ];
             if (file_exists($file = $path[0]) || file_exists($file = $path[1])) {
                 $error = Z::view()->loadRaw($file, [], true);
             }
         }
-        $error = $error.$AppendError;
+        $error = $error . $AppendError;
         if (!$result) {
             Z::end($error);
         }
@@ -6016,9 +6031,9 @@ class Zls_Logger_Dispatcher
     final public function handleError($code, $message, $file, $line)
     {
         if (0 !== error_reporting()) {
-            $throw = in_array($code, [E_WARNING],true);
+            $throw     = in_array($code, [E_WARNING], true);
             $exception = new \Zls_Exception_500($message, $code, 'General Error', $file, $line);
-            Z::throwIf($throw,$exception, $message,$code);
+            Z::throwIf($throw, $exception, $message, $code);
             $this->dispatch($exception);
         }
         return;
@@ -6028,7 +6043,7 @@ class Zls_Logger_Dispatcher
         if (0 == error_reporting()) {
             return;
         }
-        $lastError = error_get_last();
+        $lastError  = error_get_last();
         $fatalError = [1, 256, 64, 16, 4, 4096];
         if (!Z::arrayKeyExists('type', $lastError) || !in_array($lastError['type'], $fatalError)) {
             return;
@@ -6055,7 +6070,7 @@ class Zls_Maintain_Handle_Default implements Zls_Maintain_Handle
         if (!Z::isCli()) {
             Z::header('Content-type: text/html;charset=utf-8');
         }
-        return '<center><h2>server is under maintenance</h2><h3>服务器维护中</h3>'.date('Y/m/d H:i:s e').'</center>';
+        return '<center><h2>server is under maintenance</h2><h3>服务器维护中</h3>' . date('Y/m/d H:i:s e') . '</center>';
     }
 }
 class Zls_Uri_Rewriter_Default implements Zls_Uri_Rewriter
@@ -6076,22 +6091,22 @@ class Zls_Database_SlowQuery_Handle_Default implements Zls_Database_SlowQuery_Ha
 {
     public function handle($sql, $value, $explainString, $time, $trace)
     {
-        $content = 'SQL : '.$sql.PHP_EOL.'value : '.$value.PHP_EOL.'explain : '.$explainString.PHP_EOL.'usingtime : '.$time.'ms'.PHP_EOL.'time : '.date('Y-m-d H:i:s');
+        $content = 'SQL : ' . $sql . PHP_EOL . 'value : ' . $value . PHP_EOL . 'explain : ' . $explainString . PHP_EOL . 'usingtime : ' . $time . 'ms' . PHP_EOL . 'time : ' . date('Y-m-d H:i:s');
         if ($trace) {
-            $content = 'file : '.$trace['file'].PHP_EOL.'line : '.$trace['line'].PHP_EOL.'class : '.$trace['class'].PHP_EOL.'function : '.$trace['function'].PHP_EOL.$content;
+            $content = 'file : ' . $trace['file'] . PHP_EOL . 'line : ' . $trace['line'] . PHP_EOL . 'class : ' . $trace['class'] . PHP_EOL . 'function : ' . $trace['function'] . PHP_EOL . $content;
         }
-        Z::log($content.PHP_EOL, 'slowQueryProduction');
+        Z::log($content . PHP_EOL, 'slowQueryProduction');
     }
 }
 class Zls_Database_Index_Handle_Default implements Zls_Database_Index_Handle
 {
     public function handle($sql, $value, $explainString, $time, $trace)
     {
-        $content = 'SQL : '.$sql.PHP_EOL.'value : '.$value.PHP_EOL.'explain : '.$explainString.PHP_EOL.'usingtime : '.$time.'ms'.PHP_EOL.'time : '.date('Y-m-d H:i:s');
+        $content = 'SQL : ' . $sql . PHP_EOL . 'value : ' . $value . PHP_EOL . 'explain : ' . $explainString . PHP_EOL . 'usingtime : ' . $time . 'ms' . PHP_EOL . 'time : ' . date('Y-m-d H:i:s');
         if ($trace) {
-            $content = 'file : '.$trace['file'].PHP_EOL.'line : '.$trace['line'].PHP_EOL.'class : '.$trace['class'].PHP_EOL.'function : '.$trace['function'].PHP_EOL.$content;
+            $content = 'file : ' . $trace['file'] . PHP_EOL . 'line : ' . $trace['line'] . PHP_EOL . 'class : ' . $trace['class'] . PHP_EOL . 'function : ' . $trace['function'] . PHP_EOL . $content;
         }
-        Z::log($content.PHP_EOL, 'indexProduction');
+        Z::log($content . PHP_EOL, 'indexProduction');
     }
 }
 class Zls_Cache_File implements Zls_Cache
@@ -6099,8 +6114,8 @@ class Zls_Cache_File implements Zls_Cache
     private $_cacheDirPath;
     public function __construct($cacheDirPath = '')
     {
-        $cacheDirPath = empty($cacheDirPath) ? Z::config()->getStorageDirPath().'cache/' : $cacheDirPath;
-        $this->_cacheDirPath = Z::realPath($cacheDirPath).'/';
+        $cacheDirPath        = empty($cacheDirPath) ? Z::config()->getStorageDirPath() . 'cache/' : $cacheDirPath;
+        $this->_cacheDirPath = Z::realPath($cacheDirPath) . '/';
     }
     public function clean()
     {
@@ -6111,11 +6126,11 @@ class Zls_Cache_File implements Zls_Cache
         if (empty($key)) {
             return null;
         }
-        $_key = $this->_hashKey($key);
-        $filePath = $this->_hashKeyPath($_key).$_key;
+        $_key     = $this->_hashKey($key);
+        $filePath = $this->_hashKeyPath($_key) . $_key;
         if (file_exists($filePath)) {
             $cacheData = file_get_contents($filePath);
-            $userData = $this->unpack($cacheData);
+            $userData  = $this->unpack($cacheData);
             if (!is_null($userData)) {
                 return $userData;
             } else {
@@ -6132,7 +6147,7 @@ class Zls_Cache_File implements Zls_Cache
     {
         $key = md5($key);
         $len = strlen($key);
-        return $this->_cacheDirPath.$key[$len - 1].$key[$len - 2].$key[$len - 3].'/';
+        return $this->_cacheDirPath . $key[$len - 1] . $key[$len - 2] . $key[$len - 3] . '/';
     }
     private function unpack($cacheData)
     {
@@ -6144,7 +6159,7 @@ class Zls_Cache_File implements Zls_Cache
             )
         ) {
             $expireTime = $cacheData['expireTime'];
-            $userData = $cacheData['userData'];
+            $userData   = $cacheData['userData'];
             if (0 == $expireTime) {
                 return $userData;
             }
@@ -6158,8 +6173,8 @@ class Zls_Cache_File implements Zls_Cache
         if (empty($key)) {
             return false;
         }
-        $key = $this->_hashKey($key);
-        $filePath = $this->_hashKeyPath($key).$key;
+        $key      = $this->_hashKey($key);
+        $filePath = $this->_hashKeyPath($key) . $key;
         if (file_exists($filePath)) {
             return @unlink($filePath);
         }
@@ -6170,9 +6185,9 @@ class Zls_Cache_File implements Zls_Cache
         if (empty($key)) {
             return false;
         }
-        $key = $this->_hashKey($key);
+        $key      = $this->_hashKey($key);
         $cacheDir = $this->_hashKeyPath($key);
-        $filePath = $cacheDir.$key;
+        $filePath = $cacheDir . $key;
         if (!is_dir($cacheDir)) {
             mkdir($cacheDir, 0700, true);
         }
@@ -6186,7 +6201,7 @@ class Zls_Cache_File implements Zls_Cache
     {
         $cacheTime = (int)$cacheTime;
         return @serialize(
-            ['userData' => $userData,'expireTime' => (0 == $cacheTime ? 0 : time() + $cacheTime),]
+            ['userData' => $userData, 'expireTime' => (0 == $cacheTime ? 0 : time() + $cacheTime),]
         );
     }
     public function &instance($key = null, $isRead = true)
@@ -6216,7 +6231,7 @@ class Zls_Trace
     {
         $content = '';
         foreach ($data as $key => $item) {
-            $content = "{$key}:{$item}".PHP_EOL.$content;
+            $content = "{$key}:{$item}" . PHP_EOL . $content;
         }
         $this->output($content, $type);
     }
@@ -6227,7 +6242,7 @@ class Zls_Trace
      */
     public function output($content, $type, $debug = [])
     {
-        $fn = function ($content) {
+        $fn    = function ($content) {
             $_content = '';
             if (is_array($content)) {
                 foreach ($content as $key => $value) {
@@ -6236,7 +6251,7 @@ class Zls_Trace
                     } catch (\Exception $e) {
                         $value = is_string($value) ? $value : print_r($value, true);
                     }
-                    $_content .= $key.' : '.$value.PHP_EOL;
+                    $_content .= $key . ' : ' . $value . PHP_EOL;
                 }
             } else {
                 $_content = print_r($content, true);
@@ -6244,22 +6259,22 @@ class Zls_Trace
             return $_content;
         };
         $debug = $fn($debug);
-        $prefix = str_repeat('=', 25).(new \DateTime())->format('Y-m-d H:i:s u').str_repeat('=', 25);
+        $prefix = str_repeat('=', 25) . (new \DateTime())->format('Y-m-d H:i:s u') . str_repeat('=', 25);
         if (is_bool($content)) {
             $content = var_export($content, true);
         } elseif (!is_string($content)) {
             $content = $fn($content);
         }
-        $content = $prefix.PHP_EOL.$debug.$content;
+        $content  = $prefix . PHP_EOL . $debug . $content;
         $callBack = Z::config()->getTraceStatusCallBack();
         if ($callBack instanceof Closure) {
             $callBack($content, $type);
         } else {
             if (!file_exists($saveFile = $this->saveDirPath($type))) {
-                $content = '<?php defined("IN_ZLS") or die();?>'.PHP_EOL.$content;
+                $content = '<?php defined("IN_ZLS") or die();?>' . PHP_EOL . $content;
                 $this->clear($saveFile);
             }
-            file_put_contents($saveFile, $content.PHP_EOL, LOCK_EX | FILE_APPEND);
+            file_put_contents($saveFile, $content . PHP_EOL, LOCK_EX | FILE_APPEND);
         }
     }
     /**
@@ -6268,28 +6283,28 @@ class Zls_Trace
      */
     public function saveDirPath($type)
     {
-        $saveDirPath = Z::config()->getStorageDirPath().$type.'/';
+        $saveDirPath = Z::config()->getStorageDirPath() . $type . '/';
         if (!is_dir($saveDirPath)) {
             @mkdir($saveDirPath, 0700, true);
         }
-        return $saveDirPath.date('Y-m-d').'.log';
+        return $saveDirPath . date('Y-m-d') . '.log';
     }
     public function clear($saveFile)
     {
         $logsMaxDay = Z::config()->getLogsMaxDay();
-        $etime = time();
-        $stime = $etime - ($logsMaxDay * 86400);
-        $datearr = [];
+        $etime      = time();
+        $stime      = $etime - ($logsMaxDay * 86400);
+        $datearr    = [];
         while ($stime <= $etime) {
             $datearr[] = date('Y-m-d', $etime);
-            $etime = $etime - 3600 * 24;
+            $etime     = $etime - 3600 * 24;
         }
         $dir = pathinfo($saveFile, PATHINFO_DIRNAME);
         if ($dh = opendir($dir)) {
             while (false !== ($file = readdir($dh))) {
                 if ('.' != $file && '..' != $file) {
                     if (!in_array(pathinfo($file, PATHINFO_FILENAME), $datearr, true)) {
-                        @unlink($dir.'/'.$file);
+                        @unlink($dir . '/' . $file);
                     }
                 }
             }
@@ -6304,13 +6319,13 @@ class Zls_Trace
     {
         $arg = '';
         foreach ($data['args'] as $key => $v) {
-            $arg .= '------[arg_'.$key.']------'.PHP_EOL.var_export($v, true).PHP_EOL;
+            $arg .= '------[arg_' . $key . ']------' . PHP_EOL . var_export($v, true) . PHP_EOL;
         }
         $debug = Z::debug(null, false, true, false);
         $this->output(
             vsprintf(
                 "traceType : %s\ntime : %s\nruntime : %s\nmemory : %s\npath : %s\nline : %u\nargs : \n%s\n\n",
-                ['log', date('Y-m-d H:i:s'), $debug['runtime'].'s', $debug['memory'], Z::safePath($data['file']), $data['line'], $arg]
+                ['log', date('Y-m-d H:i:s'), $debug['runtime'] . 's', $debug['memory'], Z::safePath($data['file']), $data['line'], $arg]
             ),
             $type
         );
