@@ -1116,6 +1116,8 @@ class z
                             } else {
                                 $result[$pname] = $value;
                             }
+                        } else {
+                            $result[] = $p;
                         }
                     } else {
                         $result[] = $p;
@@ -1123,7 +1125,6 @@ class z
                 }
             }
         }
-        z::dump($result);
         return empty($key) ? $result : (self::arrayKeyExists($key, $result) ? $result[$key] : $default);
     }
     public static function postGet($key = null, $default = null, $xssClean = true)
@@ -2219,13 +2220,15 @@ class Zls
         $current        = strtolower(current(array_slice(array_keys($args), 1)));
         $isTask         = ('task' === $current);
         $activity       = $isTask ? str_replace('/', '_', Z::arrayGet($args, 'task')) : Z::arrayGet($args, 1);
-        // }
         if (!empty($hmvcModuleName)) {
             self::checkHmvc($hmvcModuleName);
         }
         $taskObject = null;
         try {
             if ($isTask) {
+                if ($activity === '1') {
+                    Z::end('Execute a task, please use -task <taskName> (php zls -task xxx)' . PHP_EOL);
+                }
                 $taskName   = Zls::getConfig()->getTaskDirName() . '_' . $activity;
                 $taskObject = z::factory($taskName, true);
                 Z::throwIf(!($taskObject instanceof Zls_Task), 500, '[ ' . $taskName . ' ] not a valid Zls_Task', 'ERROR');
