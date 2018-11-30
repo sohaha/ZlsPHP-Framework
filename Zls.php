@@ -6,7 +6,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.27
- * @updatetime    2018-11-28 13:54:12
+ * @updatetime    2018-11-30 20:43:12
  */
 define('IN_ZLS', '2.1.27');
 define('ZLS_CORE_PATH', __FILE__);
@@ -2918,7 +2918,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
             $where .= call_user_func_array([$this, '_compileWhere'], $w);
         }
         if ($hasEmptyIn) {
-            return ' WHERE 0';
+            return ' WHERE 0 = 1 ';
         }
         $where = trim($where);
         if ($where) {
