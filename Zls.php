@@ -6,7 +6,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.27
- * @updatetime    2018-11-30 20:43:12
+ * @updatetime    2018-12-2 23:45:24
  */
 define('IN_ZLS', '2.1.27');
 define('ZLS_CORE_PATH', __FILE__);
@@ -2860,9 +2860,9 @@ class Zls_Database_ActiveRecord extends Zls_Database
                 if ((bool)$orderBy) {
                     $orderBy = $orderBy . ' OFFSET ' . $limit . ' ROWS FETCH NEXT ' . $offset . '  ROWS ONLY ';
                 } else {
-                    $primaryKey = $this->getPrimaryKey();
-                    $orderBy    = "\n" . ' ORDER BY ' . $primaryKey . ' ASC';
                     if ($limit > 0) {
+                        Z::throwIf(!$primaryKey = $this->getPrimaryKey(),500,'nable to get the primary key can not complete the paging, please set ->orderBy(primaryKey,ASC).');
+                        $orderBy    = "\n" . ' ORDER BY ' . $primaryKey . ' ASC';
                         $originVal = $this->_values;
                         if ($primaryKey) {
                             $orderBy = $orderBy . ' OFFSET ' . $limit . ' ROWS FETCH NEXT ' . $offset . '  ROWS ONLY ';
@@ -2967,7 +2967,12 @@ class Zls_Database_ActiveRecord extends Zls_Database
     {
         $orderby = [];
         foreach ($this->arOrderby as $key => $type) {
-            $type = strtoupper($type);
+            if(!$type = strtoupper($type)){
+                $key = strtoupper($key);
+                if($this->_isSqlsrv()&&$key==='RAND()'){
+                    $key = 'NEWID()';
+                }
+            }
             $_key = explode('.', $key);
             if (2 == count($_key)) {
                 $orderby[] = $this->_protectIdentifier($this->_checkPrefix($_key[0])) . '.' . $this->_protectIdentifier($_key[1]) . ' ' . $type;
