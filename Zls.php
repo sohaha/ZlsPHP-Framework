@@ -5,8 +5,8 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.1.27
- * @updatetime    2018-12-2 23:45:24
+ * @since         v2.1.27.1
+ * @updatetime    2018-12-6 18:29:27
  */
 define('IN_ZLS', '2.1.27');
 define('ZLS_CORE_PATH', __FILE__);
@@ -2824,10 +2824,6 @@ class Zls_Database_ActiveRecord extends Zls_Database
                 break;
             default:
         }
-        $resetSql = $this->resetSql();
-        if ($resetSql instanceof Closure) {
-            $this->_currentSql = $resetSql($this->_currentSql);
-        }
         return $this->_currentSql;
     }
     private function _getSelectSql()
@@ -2861,8 +2857,8 @@ class Zls_Database_ActiveRecord extends Zls_Database
                     $orderBy = $orderBy . ' OFFSET ' . $limit . ' ROWS FETCH NEXT ' . $offset . '  ROWS ONLY ';
                 } else {
                     if ($limit > 0) {
-                        Z::throwIf(!$primaryKey = $this->getPrimaryKey(),500,'nable to get the primary key can not complete the paging, please set ->orderBy(primaryKey,ASC).');
-                        $orderBy    = "\n" . ' ORDER BY ' . $primaryKey . ' ASC';
+                        Z::throwIf(!$primaryKey = $this->getPrimaryKey(), 500, 'nable to get the primary key can not complete the paging, please set ->orderBy(primaryKey,ASC).');
+                        $orderBy   = "\n" . ' ORDER BY ' . $primaryKey . ' ASC';
                         $originVal = $this->_values;
                         if ($primaryKey) {
                             $orderBy = $orderBy . ' OFFSET ' . $limit . ' ROWS FETCH NEXT ' . $offset . '  ROWS ONLY ';
@@ -2967,9 +2963,9 @@ class Zls_Database_ActiveRecord extends Zls_Database
     {
         $orderby = [];
         foreach ($this->arOrderby as $key => $type) {
-            if(!$type = strtoupper($type)){
+            if (!$type = strtoupper($type)) {
                 $key = strtoupper($key);
-                if($this->_isSqlsrv()&&$key==='RAND()'){
+                if ($this->_isSqlsrv() && $key === 'RAND()') {
                     $key = 'NEWID()';
                 }
             }
@@ -4066,9 +4062,19 @@ abstract class Zls_Database
      */
     public function reset()
     {
-        return Z::tap($this->arFrom ? vsprintf(str_replace('?', '%s', $this->getSql()), z::arrayMap($this->getSqlValues(), function ($e) {
-            return is_string($e) ? "'{$e}'" : $e;
-        })) : '', function () {
+        if ($this->arFrom) {
+            $sql    = $this->getSql();
+            $values = z::arrayMap($this->getSqlValues(), function ($e) {
+                return is_string($e) ? "'{$e}'" : $e;
+            });
+            if ($resetSql = $this->resetSql()) {
+                $resetSql($sql, $values, vsprintf(str_replace('?', '%s', $sql), $values));
+            }
+            $preview = vsprintf(str_replace('?', '%s', $sql), $values);
+        } else {
+            $preview = '';
+        }
+        return Z::tap($preview, function () {
             $this->_cacheKey  = '';
             $this->_cacheTime = null;
             $this->_reset();
@@ -4104,10 +4110,14 @@ abstract class Zls_Database
         if (!$this->_init()) {
             return false;
         }
-        $startTime      = Z::microtime();
-        $sql            = $sql ? $this->_checkPrefixIdentifier($sql) : $this->getSql();
-        $this->_lastSql = $sql;
-        $values         = !empty($values) ? $values : $this->_getValues();
+        $startTime = Z::microtime();
+        $sql       = $sql ? $this->_checkPrefixIdentifier($sql) : $this->getSql();
+        $values    = !empty($values) ? $values : $this->_getValues();
+        $resetSql  = $this->resetSql();
+        if ($resetSql instanceof Closure) {
+            $resetSql($sql, $values, vsprintf(str_replace('?', '%s', $sql), $values));
+        }
+        $this->_lastSql = vsprintf(str_replace('?', '%s', $sql), $values);
         $cacheHandle = null;
         if (is_numeric($this->_cacheTime)) {
             $cacheHandle = Z::config()->getCacheHandle();
