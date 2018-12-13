@@ -6,7 +6,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.27.1
- * @updatetime    2018-12-13 17:42:53
+ * @updatetime    2018-12-13 18:52:29
  */
 define('IN_ZLS', '2.1.27');
 define('ZLS_CORE_PATH', __FILE__);
@@ -4063,6 +4063,12 @@ abstract class Zls_Database
         $this->_cacheKey  = $cacheKey;
         return $this;
     }
+    private function vsprintfSql($sql, $values)
+    {
+        return vsprintf(str_replace('?', '%s', $sql), z::arrayMap($values, function ($e) {
+            return is_string($e) ? "'{$e}'" : $e;
+        }));
+    }
     /**
      * @return string
      */
@@ -4070,13 +4076,11 @@ abstract class Zls_Database
     {
         if ($this->arFrom) {
             $sql    = $this->getSql();
-            $values = z::arrayMap($this->getSqlValues(), function ($e) {
-                return is_string($e) ? "'{$e}'" : $e;
-            });
+            $values = $this->getSqlValues();
             if ($resetSql = $this->resetSql()) {
-                $resetSql($sql, $values, vsprintf(str_replace('?', '%s', $sql), $values));
+                $resetSql($sql, $values, $this->vsprintfSql($sql, $values));
             }
-            $preview = vsprintf(str_replace('?', '%s', $sql), $values);
+            $preview = $this->vsprintfSql($sql, $values);
         } else {
             $preview = '';
         }
@@ -4121,9 +4125,9 @@ abstract class Zls_Database
         $values    = !empty($values) ? $values : $this->_getValues();
         $resetSql  = $this->resetSql();
         if ($resetSql instanceof Closure) {
-            $resetSql($sql, $values, vsprintf(str_replace('?', '%s', $sql), $values));
+            $resetSql($sql, $values, $this->vsprintfSql($sql, $values));
         }
-        $this->_lastSql = vsprintf(str_replace('?', '%s', $sql), $values);
+        $this->_lastSql = $this->vsprintfSql($sql, $values);
         $cacheHandle    = null;
         if (is_numeric($this->_cacheTime)) {
             $cacheHandle = Z::config()->getCacheHandle();
@@ -4601,7 +4605,7 @@ abstract class Zls_Task_Single extends Zls_Task
                 Z::config()->getAppDir() . Z::config()->getClassesDirName() . '/'
                 . Z::config()->getTaskDirName() . '/' . str_replace('_', '/', get_class($this)) . '.php'
             );
-            $lockFilePath = Z::realPathMkdir($tempDirPath . 'taskSingle',true,false,false,false) .  $key . '.pid';
+            $lockFilePath = Z::realPathMkdir($tempDirPath . 'taskSingle', true, false, false, false) . $key . '.pid';
         }
         if (file_exists($lockFilePath)) {
             $pid = file_get_contents($lockFilePath);
@@ -4630,7 +4634,7 @@ abstract class Zls_Task_Multiple extends Zls_Task
         if (!$lockFilePath) {
             $tempDirPath  = Z::config()->getStorageDirPath();
             $key          = md5(Z::config()->getAppDir() . Z::config()->getClassesDirName() . '/' . Z::config()->getTaskDirName() . '/' . str_replace('_', '/', get_class($this)) . '.php');
-            $lockFilePath = Z::realPathMkdir($tempDirPath . 'taskMultiple',true,false,false,false) . $key . '.pid';
+            $lockFilePath = Z::realPathMkdir($tempDirPath . 'taskMultiple', true, false, false, false) . $key . '.pid';
         }
         $alivedPids = [];
         if (file_exists($lockFilePath)) {
@@ -6209,8 +6213,8 @@ class Zls_Cache_File implements Zls_Cache
         if (empty($key)) {
             return false;
         }
-        $key      = $this->_hashKey($key);
-        $filePath = Z::realPathMkdir($this->_hashKeyPath($key) . $key, false, true, false, false);
+        $key       = $this->_hashKey($key);
+        $filePath  = Z::realPathMkdir($this->_hashKeyPath($key) . $key, false, true, false, false);
         $cacheData = $this->pack($value, $cacheTime);
         if (empty($cacheData)) {
             return false;
