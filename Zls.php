@@ -6,7 +6,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.27.1
- * @updatetime    2018-12-13 18:52:29
+ * @updatetime    2018-12-18 19:03:11
  */
 define('IN_ZLS', '2.1.27');
 define('ZLS_CORE_PATH', __FILE__);
@@ -88,6 +88,28 @@ class z
                 }
             }
         });
+    }
+    /**
+     * 绑定一个事件
+     * @param          $name
+     * @param callable $fn
+     */
+    public static function eventBind($name, callable $fn)
+    {
+        if ($events = self::di()->thing($name)) {
+            $events[] = $fn;
+            self::di()->bind($name, $events);
+        } else {
+            self::di()->bind($name, [$fn]);
+        }
+    }
+    public static function eventEmit($name, $args = null)
+    {
+        if ($events = self::di()->thing($name)) {
+            foreach ($events as $event) {
+                $event($args);
+            }
+        }
     }
     /**
      * 简化临时变量
@@ -872,9 +894,10 @@ class z
         Z::throwIf(!($controllerObject instanceof Zls_Controller), 500, '[ ' . $class . ' ] not a valid Zls_Controller', 'ERROR');
         if ($method) {
             $methodFull = $config->getMethodPrefix() . $method;
+            $beforeRs   = null;
             if ($before) {
                 if (method_exists($controllerObject, 'before')) {
-                    $controllerObject->before($method, $controllerShort, $args, $class);
+                    $beforeRs = $controllerObject->before($method, $controllerShort, $args, $class);
                 }
             }
             if (!method_exists($controllerObject, $methodFull)) {
@@ -900,24 +923,11 @@ class z
                     Z::cache()->set($cacheMethoKey, $contents, $cacheMethodConfig[$methodKey]['time']);
                 }
             } else {
-                $run = function () use ($controllerObject, $methodFull, $method, $controllerShort, $args, $class) {
-                    if (method_exists($controllerObject, 'execute')) {
-                        $response = $controllerObject->execute(function () use ($controllerObject, $methodFull, $args) {
-                            return call_user_func_array([$controllerObject, $methodFull], $args);
-                        }, $method, $controllerShort, $args, $class);
-                    } else {
-                        $response = call_user_func_array([$controllerObject, $methodFull], $args);
-                    }
-                    return $response;
-                };
-                if (method_exists($controllerObject, 'after')) {
-                    @ob_start();
-                    $response = $run();
-                    $contents = @ob_get_clean();
-                    $contents .= is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
-                } else {
-                    $response = $run();
+                if (is_null($beforeRs)) {
+                    $response = call_user_func_array([$controllerObject, $methodFull], $args);
                     $contents = is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
+                } else {
+                    $contents = $beforeRs;
                 }
             }
             if ($after) {
@@ -2580,6 +2590,10 @@ class Zls_Di
             return $closure;
         };
     }
+    public function thing($name)
+    {
+        return $this->has($name) ? $this->_service[$name] : [];
+    }
     public function make($name, $args = [])
     {
         return $this->factory($name, $args);
@@ -3310,7 +3324,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
         $this->from($table);
         $this->_sqlType      = 'updateBatch';
         $this->arUpdateBatch = [$values, $index];
-        if (!empty($values[0])) {
+        if (!$values) {
             $ids = [];
             foreach ($values as $val) {
                 $ids[] = $val[$index];
@@ -4065,9 +4079,10 @@ abstract class Zls_Database
     }
     private function vsprintfSql($sql, $values)
     {
-        return vsprintf(str_replace('?', '%s', $sql), z::arrayMap($values, function ($e) {
+        $sql = str_replace(['?', '%'], ['%s', '__s__'], $sql);
+        return str_replace('__s__', '%', vsprintf($sql, z::arrayMap($values, function ($e) {
             return is_string($e) ? "'{$e}'" : $e;
-        }));
+        })));
     }
     /**
      * @return string
