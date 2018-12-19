@@ -6,7 +6,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.27.1
- * @updatetime    2018-12-18 19:03:11
+ * @updatetime    2018-12-19 13:36:58
  */
 define('IN_ZLS', '2.1.27');
 define('ZLS_CORE_PATH', __FILE__);
@@ -4079,10 +4079,9 @@ abstract class Zls_Database
     }
     private function vsprintfSql($sql, $values)
     {
-        $sql = str_replace(['?', '%'], ['%s', '__s__'], $sql);
-        return str_replace('__s__', '%', vsprintf($sql, z::arrayMap($values, function ($e) {
+        return !!$values ? vsprintf(str_replace(['%', '?'], ['%%', '%s'], $sql), z::arrayMap($values, function ($e) {
             return is_string($e) ? "'{$e}'" : $e;
-        })));
+        })) : $sql;
     }
     /**
      * @return string
