@@ -6,7 +6,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.1.27.1
- * @updatetime    2018-12-19 13:36:58
+ * @updatetime    2018-12-29 15:37:55
  */
 define('IN_ZLS', '2.1.27');
 define('ZLS_CORE_PATH', __FILE__);
@@ -1732,7 +1732,7 @@ class z
     /**
      * 数据验证
      * @param string       $value
-     * @param array|string $rule
+     * @param array|string $rule 如果字符串多个用|分隔
      * @param null         $db
      * @return mixed
      */
@@ -1742,6 +1742,7 @@ class z
         $_errKey = '';
         $redata  = [];
         $rules   = [];
+        if(is_string($rule)) $rule = explode('|',$rule);
         foreach ($rule as $k => $v) {
             if (is_int($k)) {
                 $rules[$v] = true;
@@ -2752,8 +2753,12 @@ class Zls_Database_ActiveRecord extends Zls_Database
      * @param $count
      * @return $this
      */
-    public function limit($offset, $count)
+    public function limit($offset, $count = null)
     {
+        if(is_null($count)){
+            $count = $offset;
+            $offset = 0;
+        }
         $this->arLimit = "$offset , $count";
         return $this;
     }
@@ -4996,9 +5001,23 @@ class Zls_Request_Default implements Zls_Request
         return $this;
     }
 }
+/**
+ * Class Zls_View
+ * @method string loadJs($viewName, $data = [], $return = false)
+ * @method string loadCss($viewName, $data = [], $return = false)
+ * @method string loadHtml($viewName, $data = [], $return = false)
+ */
 class Zls_View
 {
     private static $vars = [];
+    public function __call($name, $args)
+    {
+        Z::throwIf(!Z::strBeginsWith($name, 'load'), 500, $name . ' unknown type of method [ ' . $name . ' ]');
+        $args[3] = strtolower(substr($name, 4));
+        return call_user_func(function ($args) {
+            return $this->load($args[0], z::arrayGet($args, 1, []), z::arrayGet($args, 2, false), $args[3]);
+        }, $args);
+    }
     public function add($key, $value = [])
     {
         if (is_array($key)) {
@@ -5032,10 +5051,10 @@ class Zls_View
      * @param bool   $return   是否返回视图内容
      * @return string
      */
-    public function load($viewName, $data = [], $return = false)
+    public function load($viewName, $data = [], $return = false, $suffix = 'php')
     {
         $config      = Z::config();
-        $path        = $config->getAppDir() . $config->getViewsDirName() . '/' . $viewName . '.php';
+        $path        = $config->getAppDir() . $config->getViewsDirName() . '/' . $viewName . '.' . $suffix;
         $hmvcModules = $config->getHmvcModules();
         $hmvcDirName = Z::arrayGet($hmvcModules, $config->getRoute()->getHmvcModuleName(), '');
         if ($hmvcDirName) {
