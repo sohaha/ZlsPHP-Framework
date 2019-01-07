@@ -5,8 +5,8 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.1.27.1
- * @updatetime    2018-12-29 15:37:55
+ * @since         v2.2.0
+ * @updatetime    2019-1-7 12:32:41
  */
 define('IN_ZLS', '2.1.27');
 define('ZLS_CORE_PATH', __FILE__);
@@ -57,6 +57,11 @@ interface Zls_Cache
 /**
  * 内置方法.
  * @method \Zls_Router router()
+ * @method static boolean isPost()
+ * @method static boolean isPut()
+ * @method static boolean isGet()
+ * @method static boolean isDelete()
+ * @method static boolean isOptions()
  * @method static \swoole_server swoole()
  */
 class z
@@ -873,9 +878,10 @@ class z
      * @param bool          $before
      * @param bool          $after
      * @param bool          $call
-     * @return object
+     * @param bool          $requestMethod 是否根据requestMethod执行对应方法
+     * @return object|string
      */
-    public static function controller($controller, $method = null, $args = [], $hmvcModuleName = null, $before = false, $after = false, $call = false)
+    public static function controller($controller, $method = null, $args = [], $hmvcModuleName = null, $before = false, $after = false, $call = false, $requestMethod = false)
     {
         if ((bool)$hmvcModuleName) {
             Zls::checkHmvc($hmvcModuleName);
@@ -894,7 +900,13 @@ class z
         Z::throwIf(!($controllerObject instanceof Zls_Controller), 500, '[ ' . $class . ' ] not a valid Zls_Controller', 'ERROR');
         if ($method) {
             $methodFull = $config->getMethodPrefix() . $method;
-            $beforeRs   = null;
+            if ($requestMethod && $requestMethod = Z::server('request_method')) {
+                $requestMethodFull = $requestMethod . $methodFull;
+                if (method_exists($controllerObject, $requestMethodFull)) {
+                    $methodFull = $requestMethodFull;
+                }
+            }
+            $beforeRs = $callRs = null;
             if ($before) {
                 if (method_exists($controllerObject, 'before')) {
                     $beforeRs = $controllerObject->before($method, $controllerShort, $args, $class);
@@ -902,9 +914,8 @@ class z
             }
             if (!method_exists($controllerObject, $methodFull)) {
                 $containCall = $call && method_exists($controllerObject, 'call');
-                Z::throwIf(!$containCall, 404, 'Method [ ' . $class . '->' . $methodFull . '() ] not found');
-                $str = $controllerObject->call($method, $controllerShort, $args, $class);
-                Z::end(is_numeric($str) ? (string)$str : $str);
+                Z::throwIf(!$containCall, 404, 'Method' . ($requestMethod ? "({$requestMethod})" : '') . ' [ ' . $class . '->' . $methodFull . '() ] not found');
+                $callRs = $controllerObject->call($method, $controllerShort, $args, $class) ?: '';
             }
             $cacheClassName    = &$controllerShort;
             $cacheMethodName   = &$method;
@@ -922,20 +933,20 @@ class z
                     $contents .= is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
                     Z::cache()->set($cacheMethoKey, $contents, $cacheMethodConfig[$methodKey]['time']);
                 }
+            } elseif (!is_null($beforeRs)) {
+                $contents = $beforeRs;
+            } elseif (!is_null($callRs)) {
+                $contents = $callRs;
             } else {
-                if (is_null($beforeRs)) {
-                    $response = call_user_func_array([$controllerObject, $methodFull], $args);
-                    $contents = is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
-                } else {
-                    $contents = $beforeRs;
-                }
+                $response = call_user_func_array([$controllerObject, $methodFull], $args);
+                $contents = is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
             }
             if ($after) {
                 if (method_exists($controllerObject, 'after')) {
                     $contents = $controllerObject->after($contents, $methodFull, $controller, $args, $class);
                 }
             }
-            return $contents;
+            return is_numeric($contents) ? (string)$contents : $contents;
         } else {
             return $controllerObject;
         }
@@ -1742,7 +1753,9 @@ class z
         $_errKey = '';
         $redata  = [];
         $rules   = [];
-        if(is_string($rule)) $rule = explode('|',$rule);
+        if (is_string($rule)) {
+            $rule = explode('|', $rule);
+        }
         foreach ($rule as $k => $v) {
             if (is_int($k)) {
                 $rules[$v] = true;
@@ -1978,6 +1991,9 @@ class z
     }
     public static function __callStatic($name, $arguments)
     {
+        if (self::strBeginsWith($name, 'is') && ($rName = strtoupper(substr($name, 2))) && in_array($rName, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'COPY', 'HEAD', 'OPTIONS', 'LINK', 'UNLINK', 'PURGE'])) {
+            return isset($_SERVER['REQUEST_METHOD']) && $rName === strtoupper($_SERVER['REQUEST_METHOD']);
+        }
         $methods = self::config()->getZMethods();
         self::throwIf(empty($methods[$name]), 500, $name . ' not found in ->setZMethods() or it is empty');
         if (is_string($methods[$name])) {
@@ -2110,30 +2126,6 @@ class z
     public static function isAjax()
     {
         return isset($_SERVER['HTTP_X_REQUESTED_WITH']) && ('xmlhttprequest' == strtolower($_SERVER['HTTP_X_REQUESTED_WITH']));
-    }
-    /**
-     * 判断是否是Post请求
-     * @return bool
-     */
-    public static function isPost()
-    {
-        return isset($_SERVER['REQUEST_METHOD']) && 'POST' === strtoupper($_SERVER['REQUEST_METHOD']);
-    }
-    /**
-     * 判断是否是PUT请求
-     * @return bool
-     */
-    public static function isPut()
-    {
-        return isset($_SERVER['REQUEST_METHOD']) && 'PUT' === strtoupper($_SERVER['REQUEST_METHOD']);
-    }
-    /**
-     * 判断是否是delete请求
-     * @return bool
-     */
-    public static function isDelete()
-    {
-        return isset($_SERVER['REQUEST_METHOD']) && 'DELETE' === strtoupper($_SERVER['REQUEST_METHOD']);
     }
 }
 class Zls
@@ -2422,7 +2414,7 @@ class Zls
             //$controllerObject = Z::factory($class);
             $_method  = str_replace($config->getMethodPrefix(), '', $method);
             $_args    = $_route->getArgs();
-            $contents = Z::controller($class, $_method, $_args, null, true, true, true);
+            $contents = Z::controller($class, $_method, $_args, null, true, true, true, true);
         }
         if (!$result) {
             echo $contents;
@@ -2755,8 +2747,8 @@ class Zls_Database_ActiveRecord extends Zls_Database
      */
     public function limit($offset, $count = null)
     {
-        if(is_null($count)){
-            $count = $offset;
+        if (is_null($count)) {
+            $count  = $offset;
             $offset = 0;
         }
         $this->arLimit = "$offset , $count";
@@ -5405,7 +5397,7 @@ class Zls_Config
     private $environment = 'production';
     private $hmvcModules = [];
     private $isMaintainMode;
-    private $maintainIpWhitelist;
+    private $maintainIpWhitelist = [];
     private $maintainModeHandle;
     private $databseConfig;
     private $cacheHandles = [];
@@ -6188,7 +6180,7 @@ class Zls_Cache_File implements Zls_Cache
             return null;
         }
         $_key     = $this->_hashKey($key);
-        $filePath = $this->_hashKeyPath($_key) . $_key;
+        $filePath = $this->_hashKeyPath($_key);
         if (file_exists($filePath)) {
             $cacheData = file_get_contents($filePath);
             $userData  = $this->unpack($cacheData);
@@ -6202,13 +6194,11 @@ class Zls_Cache_File implements Zls_Cache
     }
     private function _hashKey($key)
     {
-        return md5($key);
+        return md5($key) . md5(base64_encode($key));
     }
     private function _hashKeyPath($key)
     {
-        $key = md5($key);
-        $len = strlen($key);
-        return $this->_cacheDirPath . $key[$len - 1] . $key[$len - 2] . $key[$len - 3] . '/';
+        return $this->_cacheDirPath . $key;
     }
     private function unpack($cacheData)
     {
@@ -6235,7 +6225,7 @@ class Zls_Cache_File implements Zls_Cache
             return false;
         }
         $key      = $this->_hashKey($key);
-        $filePath = $this->_hashKeyPath($key) . $key;
+        $filePath = $this->_hashKeyPath($key);
         if (file_exists($filePath)) {
             return @unlink($filePath);
         }
@@ -6247,7 +6237,7 @@ class Zls_Cache_File implements Zls_Cache
             return false;
         }
         $key       = $this->_hashKey($key);
-        $filePath  = Z::realPathMkdir($this->_hashKeyPath($key) . $key, false, true, false, false);
+        $filePath  = Z::realPathMkdir($this->_hashKeyPath($key), false, true, false, false);
         $cacheData = $this->pack($value, $cacheTime);
         if (empty($cacheData)) {
             return false;
