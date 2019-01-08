@@ -6,7 +6,7 @@
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.2.0
- * @updatetime    2019-1-7 12:32:41
+ * @updatetime    2019-1-7 13:17:26
  */
 define('IN_ZLS', '2.1.27');
 define('ZLS_CORE_PATH', __FILE__);
@@ -1480,21 +1480,29 @@ class z
     }
     /**
      * 获取原始的POST数据，即php://input获取到的
-     * @param null $key
-     * @param null $default
-     * @param bool $xssClean
      * @return string
      */
-    public static function postRaw($key = null, $default = null, $xssClean = true)
+    public static function postRaw()
     {
-        $input = file_get_contents('php://input') ?: self::server('ZLS_POSTRAW');
-        if (!$key) {
+        return file_get_contents('php://input') ?: self::server('ZLS_POSTRAW');
+    }
+    public static function postText($key = null, $default = null, $xssClean = true)
+    {
+        parse_str(self::postRaw(),$input);
+        if (is_null($key)) {
             return $input;
-        } else {
-            parse_str($input, $data);
-            $value = is_null($key) ? $data : self::arrayGet($data, $key, $default);
-            return $xssClean ? self::xssClean($value) : $value;
         }
+        $value = self::arrayGet($input,$key);
+        return $xssClean ? self::xssClean($value) : $value;
+    }
+    public static function postJson($key = null, $default = null, $xssClean = true)
+    {
+        $input = @json_decode(self::postRaw(),true);
+        if (is_null($key)) {
+            return $input;
+        }
+        $value = self::arrayGet($input,$key);
+        return $xssClean ? self::xssClean($value) : $value;
     }
     /**
      * 获取cookie
@@ -6242,7 +6250,9 @@ class Zls_Cache_File implements Zls_Cache
         if (empty($cacheData)) {
             return false;
         }
-        return file_put_contents($filePath, $cacheData, LOCK_EX);
+        return Z::tap(file_put_contents($filePath, $cacheData, LOCK_EX),function ()use ($filePath,$cacheTime){
+            @touch($filePath, time() + ($cacheTime > 0 ? $cacheTime : 31536000));
+        });
     }
     private function pack($userData, $cacheTime)
     {
