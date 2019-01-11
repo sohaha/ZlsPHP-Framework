@@ -610,25 +610,29 @@ class z
     }
     /**
      * 执行任务
-     * @param        $taksName
-     * @param array  $args
-     * @param string $user
-     * @param string $phpPath
+     * @param              $taksName
+     * @param array|string $args
+     * @param string|null  $user
+     * @param string|null  $phpPath
      * @return string
      */
-    public static function task($taksName, $args = [], $user = '', $phpPath = null)
+    public static function task($taksName, $args = null, $user = '', $phpPath = null, $logFile = false)
     {
         $phpPath = $phpPath ?: self::phpPath();
         $argc    = '';
-        foreach ($args as $key => $value) {
-            $argc .= " -{$key} $value";
+        if (is_array($args)) {
+            foreach ($args as $key => $value) {
+                $argc .= " -{$key} $value";
+            }
+        } else {
+            $argc = ' ' . $args;
         }
         $index = ZLS_PATH . '/' . ZLS_INDEX_NAME;
         if (!self::isWin() && (!$user && '' !== $user)) {
             $user = trim(self::command('whoami', '', true));
         }
         $cmd = "{$phpPath} {$index}  -task {$taksName}{$argc}";
-        self::command($cmd, $user, false);
+        self::command($cmd, $user, $logFile);
         return $cmd;
     }
     /**
@@ -670,23 +674,24 @@ class z
     }
     /**
      * 执行外部命令
-     * @param        $cmd
-     * @param string $user
-     * @param bool   $return
-     * @param bool   $escape
+     * @param             $cmd
+     * @param string      $user
+     * @param bool|string $logfile true直接输出,false不输出,或指定输入日志路径
+     * @param bool        $escape
      * @return string
      */
-    public static function command($cmd, $user = '', $return = true, $escape = true)
+    public static function command($cmd, $user = '', $logfile = true, $escape = true)
     {
         $disabled = explode(',', ini_get('disable_functions'));
         if ($escape && !in_array('escapeshellcmd', $disabled)) {
             $cmd = escapeshellcmd($cmd);
         }
-        if (!$return) {
+        $exportLogfile = is_string($logfile) ? $logfile : false;
+        if (!$logfile || $exportLogfile) {
             if (self::isWin()) {
-                $cmd = "start /b {$cmd} > NUL ";
+                $cmd = "start /b {$cmd} " . ($exportLogfile ? '>> ' . $exportLogfile : '> NUL');
             } else {
-                $cmd = $user ? 'sudo -u ' . $user . ' ' . $cmd . ' > /dev/null &' : $cmd . ' > /dev/null &';
+                $cmd = ($user ? 'sudo -u ' . $user . ' ' . $cmd : $cmd) . ' ' . ($exportLogfile ? '>> ' . $exportLogfile : '> /dev/null').' 2>&1';
             }
         }
         @ob_start();
@@ -706,7 +711,7 @@ class z
                 break;
             case !in_array('popen', $disabled):
                 $fp = popen($cmd, 'r');
-                if ($return) {
+                if ($logfile) {
                     while (!feof($fp)) {
                         echo fread($fp, 1024);
                     }
@@ -1488,20 +1493,20 @@ class z
     }
     public static function postText($key = null, $default = null, $xssClean = true)
     {
-        parse_str(self::postRaw(),$input);
+        parse_str(self::postRaw(), $input);
         if (is_null($key)) {
             return $input;
         }
-        $value = self::arrayGet($input,$key);
+        $value = self::arrayGet($input, $key);
         return $xssClean ? self::xssClean($value) : $value;
     }
     public static function postJson($key = null, $default = null, $xssClean = true)
     {
-        $input = @json_decode(self::postRaw(),true);
+        $input = @json_decode(self::postRaw(), true);
         if (is_null($key)) {
             return $input;
         }
-        $value = self::arrayGet($input,$key);
+        $value = self::arrayGet($input, $key);
         return $xssClean ? self::xssClean($value) : $value;
     }
     /**
@@ -6250,7 +6255,7 @@ class Zls_Cache_File implements Zls_Cache
         if (empty($cacheData)) {
             return false;
         }
-        return Z::tap(file_put_contents($filePath, $cacheData, LOCK_EX),function ()use ($filePath,$cacheTime){
+        return Z::tap(file_put_contents($filePath, $cacheData, LOCK_EX), function () use ($filePath, $cacheTime) {
             @touch($filePath, time() + ($cacheTime > 0 ? $cacheTime : 31536000));
         });
     }
