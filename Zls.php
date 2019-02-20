@@ -5,8 +5,8 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.2.5
- * @updatetime    2019-2-19 16:58:00
+ * @since         v2.2.0
+ * @updatetime    2019-2-20 19:43:10
  */
 define('IN_ZLS', '2.1.27');
 define('ZLS_CORE_PATH', __FILE__);
@@ -2441,9 +2441,7 @@ class Zls
                 return false;
             }
             //$controllerObject = Z::factory($class);
-            $_method = str_replace($config->getMethodPrefix(), '', $method);
-            $_args = $_route->getArgs();
-            $contents = Z::controller($class, $_method, $_args, null, true, true, true, true);
+            $contents = Z::controller($class, substr($method, strlen($config->getMethodPrefix())), $_route->getArgs(), null, true, true, true, true);
         }
         if (!$result) {
             echo $contents;
@@ -6044,7 +6042,7 @@ class Zls_Logger_Dispatcher
             self::setMemReverse();
             self::$instance = new self();
             Z::isPluginMode() ? ini_set('display_errors', true) : ini_set('display_errors', false);
-            set_error_handler([self::$instance, 'handleError']);
+            set_exception_handler([self::$instance, 'handleError']);
             set_exception_handler([self::$instance, 'handleException']);
             register_shutdown_function([self::$instance, 'handleFatal']);
         }
@@ -6060,6 +6058,7 @@ class Zls_Logger_Dispatcher
      */
     final public function handleException($exception)
     {
+        Z::throwIf(z::swooleUuid() != z::server("ZLS_SWOOLE_UUID", '0'), $exception);
         if (is_subclass_of($exception, 'Zls_Exception')) {
             $this->dispatch($exception);
         } else {
@@ -6121,11 +6120,10 @@ class Zls_Logger_Dispatcher
      */
     final public function handleError($code, $message, $file, $line)
     {
-        z::log([z::swooleUuid(), z::server("SWOOLE_UUID")], 'swoole', true);
         if (0 !== error_reporting()) {
             $throw = in_array($code, [E_WARNING], true);
             $exception = new \Zls_Exception_500($message, $code, 'General Error', $file, $line);
-            Z::throwIf($throw, $exception, $message, $code);
+            Z::throwIf($throw || z::swooleUuid() != z::server("ZLS_SWOOLE_UUID", '0'), $exception, $message, $code);
             $this->dispatch($exception);
         }
         return;
@@ -6141,10 +6139,12 @@ class Zls_Logger_Dispatcher
             return;
         }
         self::$memReverse = null;
+        $exception = new \Zls_Exception_500($lastError['message'], $lastError['type'], 'Fatal Error', $lastError['file'], $lastError['line']);
+        Z::throwIf(z::swooleUuid() != z::server("ZLS_SWOOLE_UUID", '0'), $exception);
         if (!Z::isSwoole()) {
-            $this->dispatch(new \Zls_Exception_500($lastError['message'], $lastError['type'], 'Fatal Error', $lastError['file'], $lastError['line']));
+            $this->dispatch($exception);
         } else {
-            $error = $this->dispatch(new \Zls_Exception_500($lastError['message'], $lastError['type'], 'Fatal Error', $lastError['file'], $lastError['line']), true);
+            $error = $this->dispatch($exception, true);
             if (Z::isSwoole(true)) {
                 $response = Z::di()->makeShared('SwooleResponse');
                 $response->write($error);
