@@ -6,9 +6,9 @@
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.2.1
- * @updatetime    2019-2-25 13:03:29
+ * @updatetime    2019-2-25 14:34:21
  */
-define('IN_ZLS', '2.2.1');
+define('IN_ZLS', '2.2.1.1');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
@@ -207,7 +207,7 @@ class Z
     {
         static $swoole;
         if(is_null($swoole)){
-            $swoole = extension_loaded('xdebug');
+            $swoole = extension_loaded('swoole');
         }
         $isSwoole = ($swoole && array_key_exists('swoole', self::config()->getZMethods())) ? self::swoole()->worker_id >= 0 : false;
         return $isHttp ? $isSwoole && self::di()->has(SWOOLE_RESPONSE) : $isSwoole;
