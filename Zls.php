@@ -3,12 +3,12 @@
  * Zls.
  * @author        影浅
  * @email         seekwe@gmail.com
- * @copyright     Copyright (c) 2015 - 2017, 影浅, Inc.
+ * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.2.0
- * @updatetime    2019-2-20 19:43:10
+ * @since         v2.2.1
+ * @updatetime    2019-2-25 13:03:29
  */
-define('IN_ZLS', '2.1.27');
+define('IN_ZLS', '2.2.1');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
@@ -16,6 +16,7 @@ defined('ZLS_RUN_MODE_CLI') || define('ZLS_RUN_MODE_CLI', true);
 defined('ZLS_APP_PATH') || define('ZLS_APP_PATH', Z::realPath(ZLS_PATH . 'app', true));
 defined('ZLS_INDEX_NAME') || define('ZLS_INDEX_NAME', pathinfo(__FILE__, PATHINFO_BASENAME));
 defined('ZLS_PACKAGES_PATH') || define('ZLS_PACKAGES_PATH', ZLS_APP_PATH . 'packages/');
+define('SWOOLE_RESPONSE', 'SwooleResponse');
 interface Zls_Logger
 {
     public function write(\Zls_Exception $exception);
@@ -62,11 +63,13 @@ interface Zls_Cache
  * @method static boolean isGet()
  * @method static boolean isDelete()
  * @method static boolean isOptions()
+ * @method static array|string filesGet($key = null)
  * @method static \swoole_server swoole()
  */
-class z
+class Z
 {
     private static $dbInstances = [];
+    private static $globalData = [];
     /**
      * 返回文件夹路径 / 不存在则创建
      * @param string $path 文件夹路径
@@ -180,14 +183,14 @@ class z
     }
     public static function dump()
     {
-        static $isXdebug = null;
+        static $isXdebug;
         if (is_null($isXdebug) && $isXdebug = extension_loaded('xdebug')) {
             ini_set('xdebug.var_display_max_data', -1);
             ini_set('xdebug.var_display_max_depth', -1);
             ini_set('xdebug.var_display_max_children', -1);
             $isXdebug = (bool)ini_get('xdebug.overload_var_dump');
         }
-        $beautify = !(Z::isCli() && !Z::isSwoole(true)) && !$isXdebug;
+        $beautify = (!Z::isCli() || Z::isSwoole(true)) && !$isXdebug;
         echo $beautify ? '<pre style="line-height:1.5em;font-size:14px;">' : "\n";
         @ob_start();
         $args = func_get_args();
@@ -202,8 +205,12 @@ class z
     }
     public static function isSwoole($isHttp = false)
     {
-        $isSwoole = (array_key_exists('swoole', self::config()->getZMethods()) ? self::swoole()->worker_id >= 0 : false);
-        return $isHttp ? $isSwoole && self::di()->has('SwooleResponse') : $isSwoole;
+        static $swoole;
+        if(is_null($swoole)){
+            $swoole = extension_loaded('xdebug');
+        }
+        $isSwoole = ($swoole && array_key_exists('swoole', self::config()->getZMethods())) ? self::swoole()->worker_id >= 0 : false;
+        return $isHttp ? $isSwoole && self::di()->has(SWOOLE_RESPONSE) : $isSwoole;
     }
     /**
      * 获取配置信息
@@ -298,6 +305,9 @@ class z
      */
     public static function arrayGet($arr, $keys, $default = null, $explode = true, $join = false)
     {
+        if (!is_array($arr)) {
+            $arr = [];
+        }
         if (is_array($keys)) {
             $key = array_shift($keys);
         } else {
@@ -320,15 +330,17 @@ class z
     }
     /**
      * 容器
-     * @param bool $remove
-     * @return Zls_Di|boolean
+     * @param bool|null $remove
+     * @return Zls_Di|boolean|array
      */
     public static function di($remove = false)
     {
         static $di;
         $uuid = self::swooleUuid();
         $isset = isset($di[$uuid]);
-        if (!$remove) {
+        if (is_null($remove)) {
+            return array_keys($di);
+        } elseif (!$remove) {
             if (!$isset) {
                 $di[$uuid] = new \Zls_Di();
                 if ($uuid !== '0') {
@@ -541,7 +553,8 @@ class z
      */
     public static function server($key = null, $default = null)
     {
-        return is_null($key) ? $_SERVER : self::arrayGet($_SERVER, strtoupper($key), $default);
+        $server = self::getGlobalData('server');
+        return is_null($key) ? $server : self::arrayGet($server, strtoupper($key), $default);
     }
     /**
      * 数组指定key过滤
@@ -599,8 +612,9 @@ class z
             self::cache()->reset();
         }
         self::clearDb();
-        self::di(true);
-        \Zls_Logger_Dispatcher::setMemReverse();
+        self::di(true, true);
+        self::removeGlobalData();
+        Zls_Logger_Dispatcher::setMemReverse();
     }
     /**
      * 获取缓存操作对象
@@ -1180,14 +1194,15 @@ class z
         if (is_null($key)) {
             $value = self::post() ?: self::get();
         } else {
-            $postValue = self::arrayGet($_POST, $key);
-            $value = is_null($postValue) ? self::arrayGet($_GET, $key, $default) : $postValue;
+            $postValue = self::post($key, null, $xssClean);
+            $value = is_null($postValue) ? self::get($key, $default, $xssClean) : $postValue;
         }
-        return $xssClean ? self::xssClean($value) : $value;
+        return $value;
     }
     public static function post($key = null, $default = null, $xssClean = true)
     {
-        $value = is_null($key) ? $_POST : self::arrayGet($_POST, $key, $default);
+        $post = self::getGlobalData('post');
+        $value = is_null($key) ? $post : self::arrayGet($post, $key, $default);
         return $xssClean ? self::xssClean($value) : $value;
     }
     /**
@@ -1260,7 +1275,8 @@ class z
     }
     public static function get($key = null, $default = null, $xssClean = true)
     {
-        $value = is_null($key) ? $_GET : self::arrayGet($_GET, $key, $default);
+        $get = self::getGlobalData('get');
+        $value = is_null($key) ? $get : self::arrayGet($get, $key, $default);
         return $xssClean ? self::xssClean($value) : $value;
     }
     /**
@@ -1399,31 +1415,42 @@ class z
                     $autoDomain = '.' . $domian;
                 }
             }
-            setcookie(
-                $key,
-                $value,
-                ($life ? $life + time() : null),
-                $path,
-                $autoDomain,
-                (443 == self::server('SERVER_PORT') ? 1 : 0),
-                $httpOnly
-            );
+            setcookie($key, $value, ($life ? $life + time() : null), $path, $autoDomain, (443 == self::server('SERVER_PORT') ? 1 : 0), $httpOnly);
         } else {
-            z::di()->makeShared('SwooleResponse')->cookie($key, $value, $life, $path, $domian, $httpOnly);
+            z::di()->makeShared(SWOOLE_RESPONSE)->cookie($key, $value, $life, $path, $domian, $httpOnly);
         }
         $_COOKIE[$key] = $value;
     }
-    /**
-     * @param $content
-     */
-    public static function header($content)
+    public static function getGlobalData($key)
+    {
+        return self::arrayGet(self::$globalData[self::swooleUuid()], $key);
+    }
+    public static function removeGlobalData()
+    {
+        unset(self::$globalData[self::swooleUuid()]);
+    }
+    public static function setGlobalData($key, $data = [])
+    {
+        $id = self::swooleUuid();
+        if (!is_array($key)) {
+            $oldData = self::arrayGet(self::$globalData[$id], $key, []);
+            if (is_array($data) && is_array($oldData)) {
+                self::$globalData[$id][$key] = array_merge($oldData, $data);
+            } else {
+                self::$globalData[$id][$key] = $data;
+            }
+        } else {
+            self::$globalData[$id] = isset(self::$globalData[$id]) ? array_merge(self::$globalData[$id], $key) : $key;
+        }
+    }
+    public static function header($content = '')
     {
         try {
             if (self::isSwoole(true)) {
                 $header = explode(':', $content);
                 $k = array_shift($header);
                 $c = join(':', $header);
-                self::di()->makeShared('SwooleResponse')->header($k, trim($c));
+                self::di()->makeShared(SWOOLE_RESPONSE)->header($k, trim($c));
             } elseif (!self::isCli()) {
                 header($content);
             }
@@ -1714,10 +1741,9 @@ class z
         if ((bool)$uri) {
             $path = strstr(self::server('REQUEST_URI'), '?', true) ?: self::server('REQUEST_URI');
             if (!$path) {
-                $path = strstr(self::server('SCRIPT_NAME'), ZLS_PATH . '/' . ZLS_INDEX_NAME, true) . self::arrayGet(
-                        $_SERVER,
+                $path = strstr(self::server('SCRIPT_NAME'), ZLS_PATH . '/' . ZLS_INDEX_NAME, true) . self::server(
                         'PATH_INFO',
-                        self::arrayGet($_SERVER, 'REDIRECT_PATH_INFO')
+                        self::server('REDIRECT_PATH_INFO')
                     );
             }
             $host .= $path;
@@ -1915,10 +1941,10 @@ class z
         if (is_null($key)) {
             $value = self::get() ?: self::post();
         } else {
-            $getValue = self::arrayGet($_GET, $key);
-            $value = is_null($getValue) ? self::arrayGet($_POST, $key, $default) : $getValue;
+            $getValue = self::get($key, null, $xssClean);
+            $value = is_null($getValue) ? self::post($key, $default, $xssClean) : $getValue;
         }
-        return $xssClean ? self::xssClean($value) : $value;
+        return $value;
     }
     /**
      * 分页方法
@@ -1983,7 +2009,7 @@ class z
     public static function redirect($url, $msg = null, $time = 3, $view = null)
     {
         if (self::isSwoole(true)) {
-            z::di()->makeShared('SwooleResponse')->status(302);
+            z::di()->makeShared(SWOOLE_RESPONSE)->status(302);
         }
         if (empty($msg) && empty($view)) {
             self::header('Location: ' . $url);
@@ -2021,7 +2047,14 @@ class z
     public static function __callStatic($name, $arguments)
     {
         if (self::strBeginsWith($name, 'is') && ($rName = strtoupper(substr($name, 2))) && in_array($rName, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'COPY', 'HEAD', 'OPTIONS', 'LINK', 'UNLINK', 'PURGE'])) {
-            return isset($_SERVER['REQUEST_METHOD']) && $rName === strtoupper($_SERVER['REQUEST_METHOD']);
+            return $rName === strtoupper(Z::server('REQUEST_METHOD', ''));
+        } elseif (self::strEndsWith($name, 'Get') && ($rName = substr($name, 0, -3))) {
+            $globalData = &self::$globalData[self::swooleUuid()];
+            if (isset($globalData[$rName])) {
+                $data = self::getGlobalData($rName);
+                $key = self::arrayGet($arguments, 0);
+                return $key ? self::arrayGet($data, $key) : $data;
+            }
         }
         $methods = self::config()->getZMethods();
         self::throwIf(empty($methods[$name]), 500, $name . ' not found in ->setZMethods() or it is empty');
@@ -2154,7 +2187,7 @@ class z
      */
     public static function isAjax()
     {
-        return isset($_SERVER['HTTP_X_REQUESTED_WITH']) && ('xmlhttprequest' == strtolower($_SERVER['HTTP_X_REQUESTED_WITH']));
+        return 'xmlhttprequest' == strtolower(Z::server('HTTP_X_REQUESTED_WITH', ''));
     }
 }
 class Zls
@@ -2216,6 +2249,14 @@ class Zls
             $_POST = Z::stripSlashes($_POST);
             $_COOKIE = Z::stripSlashes($_COOKIE);
         }
+        Z::setGlobalData([
+            'server' => $_SERVER,
+            'get' => $_GET,
+            'post' => $_POST,
+            'files' => isset($_FILES) ? $_FILES : [],
+            'cookie' => isset($_COOKIE) ? $_COOKIE : [],
+            'session' => isset($_SESSION) ? $_SESSION : []
+        ]);
         $zlsConfig->setAppDir(ZLS_APP_PATH);
         $zlsConfig->addPackage(ZLS_APP_PATH);
         $zlsConfig->composer();
@@ -4996,9 +5037,9 @@ class Zls_Request_Default implements Zls_Request
     private $queryString;
     public function __construct()
     {
-        if (!$this->pathInfo = Z::arrayGet($_SERVER, 'PATH_INFO', Z::arrayGet($_SERVER, 'REDIRECT_PATH_INFO'))) {
-            if ($requestUri = Z::arrayGet($_SERVER, 'REQUEST_URI', '')) {
-                $REQUEST_URI = Z::arrayGet($_SERVER, 'REQUEST_URI', '');
+        if (!$this->pathInfo = Z::server('PATH_INFO', Z::server('REDIRECT_PATH_INFO'))) {
+            if ($requestUri = Z::server('REQUEST_URI', '')) {
+                $REQUEST_URI = Z::server('REQUEST_URI', '');
                 if (Z::strBeginsWith($REQUEST_URI, '//')) {
                     $REQUEST_URI = ltrim($REQUEST_URI, '/');
                 }
@@ -5008,7 +5049,7 @@ class Zls_Request_Default implements Zls_Request
         if (in_array($this->pathInfo, ['/favicon.ico'])) {
             Z::end();
         }
-        $this->queryString = Z::arrayGet($_SERVER, 'QUERY_STRING', '');
+        $this->queryString = Z::server('QUERY_STRING', '');
     }
     public function getPathInfo()
     {
@@ -5511,7 +5552,7 @@ class Zls_Config
     public function getEnvironment()
     {
         if (empty($this->environment)) {
-            $this->environment = ($env = (($cliEnv = Z::getOpt('env')) ? $cliEnv : Z::arrayGet($_SERVER, 'ENVIRONMENT'))) ? $env : 'production'; //'development'
+            $this->environment = ($env = (($cliEnv = Z::getOpt('env')) ? $cliEnv : Z::server('ENVIRONMENT'))) ? $env : 'production'; //'development'
         }
         return $this->environment;
     }
@@ -6146,7 +6187,7 @@ class Zls_Logger_Dispatcher
         } else {
             $error = $this->dispatch($exception, true);
             if (Z::isSwoole(true)) {
-                $response = Z::di()->makeShared('SwooleResponse');
+                $response = Z::di()->makeShared(SWOOLE_RESPONSE);
                 $response->write($error);
                 $response->end();
             } else {
@@ -6221,8 +6262,9 @@ class Zls_Cache_File implements Zls_Cache
         $_key = $this->_hashKey($key);
         $filePath = $this->_hashKeyPath($_key);
         if (file_exists($filePath)) {
-            $cacheData = file_get_contents($filePath);
-            $userData = $this->unpack($cacheData);
+            if ($userData = @file_get_contents($filePath)) {
+                $userData = $this->unpack($userData);
+            }
             if (!is_null($userData)) {
                 return $userData;
             } else {
