@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.2.1
- * @updatetime    2019-2-25 14:34:21
+ * @since         v2.2.1.2
+ * @updatetime    2019-2-26 13:48:52
  */
-define('IN_ZLS', '2.2.1.1');
+define('IN_ZLS', '2.2.1.2');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
@@ -538,10 +538,8 @@ class Z
             return '';
         }
         $path = self::realPath($path);
-        $siteRoot = self::realPath(self::server('DOCUMENT_ROOT'));
+        $siteRoot = is_bool($entr) ?self::realPath( '.', false,$entr) : $entr;
         $_path = str_replace($siteRoot, '', $path);
-        $entr = true === $entr ? ZLS_PATH : (false === $entr ? self::realPath(ZLS_APP_PATH . '..', true) : $entr);
-        $entr = self::realPath($entr);
         $relPath = str_replace($siteRoot, '', rtrim($entr, '/'));
         return $prefix . str_replace($relPath, '', $_path);
     }
