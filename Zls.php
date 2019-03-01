@@ -8,7 +8,7 @@
  * @since         v2.2.1
  * @updatetime    2019-3-1 13:04:57
  */
-define('IN_ZLS', '2.2.1.3');
+define('IN_ZLS', '2.2.1.5');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
@@ -6407,7 +6407,7 @@ class Zls_Trace
             }
             Z::forceUmask(function () use ($saveFile, $content) {
                 return @file_put_contents($saveFile, $content . PHP_EOL, LOCK_EX | FILE_APPEND);
-            }, 777);
+            });
         }
     }
     /**
