@@ -6,9 +6,9 @@
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.2.1
- * @updatetime    2019-3-1 13:36:18
+ * @updatetime    2019-3-1 15:07:19
  */
-define('IN_ZLS', '2.2.1.6');
+define('IN_ZLS', '2.2.1.7');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
@@ -5394,7 +5394,6 @@ class Zls_SeparationRouter extends Zls_Route
  * @method Zls_Config                         setMethodParametersDelimiter($e)
  * @method Zls_Config                         setExceptionHandle($e)
  * @method Zls_Config                         setOutputJsonRender($e)
- * @method Zls_Config                         setLogsSubDirNameFormat($e)
  * @method Zls_Config                         setCommands($e)
  * @method Zls_Config                         setHmvcDirName($e)
  * @method Zls_Config                         setLogsMaxDay($e)
@@ -5453,7 +5452,7 @@ class Zls_Config
     private $methodPrefix = 'z_';
     private $methodUriSubfix = '.go';
     private $methodParametersDelimiter = '-';
-    private $logsSubDirNameFormat = 'Y-m-d/H';
+    private $logsSubDirNameFormat = 'Y-m-d/H';// todo 后期移除
     private $exceptionLevel = '';
     private $exceptionControl = true;
     private $cookiePrefix = '';
@@ -5870,13 +5869,6 @@ class Zls_Config
     {
         $this->backendServerIpWhitelist = $backendServerIpWhitelist;
         return $this;
-    }
-    public function getLogsSubDirNameFormat()
-    {
-        if (!$this->logsSubDirNameFormat) {
-            $this->logsSubDirNameFormat = 'Y-m-d/H';
-        }
-        return $this->logsSubDirNameFormat;
     }
     /**
      * @param array $funciontsFileNameArray
