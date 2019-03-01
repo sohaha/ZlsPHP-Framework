@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.2.1.2
- * @updatetime    2019-2-26 13:48:52
+ * @since         v2.2.1
+ * @updatetime    2019-3-1 13:04:57
  */
-define('IN_ZLS', '2.2.1.2');
+define('IN_ZLS', '2.2.1.3');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
@@ -638,6 +638,7 @@ class Z
      * @param array|string $args
      * @param string|null  $user
      * @param string|null  $phpPath
+     * @param bool         $logFile
      * @return string
      */
     public static function task($taksName, $args = null, $user = '', $phpPath = null, $logFile = false)
@@ -651,7 +652,7 @@ class Z
         } else {
             $argc = ' ' . $args;
         }
-        $index = ZLS_PATH . '/' . ZLS_INDEX_NAME;
+        $index = ZLS_PATH . ZLS_INDEX_NAME;
         if (!self::isWin() && (!$user && '' !== $user)) {
             $user = trim(self::command('whoami', '', true));
         }
@@ -715,7 +716,7 @@ class Z
             if (self::isWin()) {
                 $cmd = "start /b {$cmd} " . ($exportLogfile ? '>> ' . $exportLogfile : '> NUL');
             } else {
-                $cmd = ($user ? 'sudo -u ' . $user . ' ' . $cmd : $cmd) . ' ' . ($exportLogfile ? '>> ' . $exportLogfile : '> /dev/null') . ' 2>&1';
+                $cmd = ($user ? 'sudo -u ' . $user . ' ' . $cmd : $cmd) . ' ' . ($exportLogfile ? '>> ' . $exportLogfile : '> /dev/null') . ' 2>&1 &';
             }
         }
         @ob_start();
@@ -6402,11 +6403,10 @@ class Zls_Trace
             $callBack($content, $type);
         } else {
             if (!file_exists($saveFile = $this->saveDirPath($type))) {
-                $content = '<?php defined("IN_ZLS") or die();?>' . PHP_EOL . $content;
                 $this->clear($saveFile);
             }
             Z::forceUmask(function () use ($saveFile, $content) {
-                return file_put_contents($saveFile, $content . PHP_EOL, LOCK_EX | FILE_APPEND);
+                return @file_put_contents($saveFile, $content . PHP_EOL, LOCK_EX | FILE_APPEND);
             }, 777);
         }
     }
