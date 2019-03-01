@@ -6,9 +6,9 @@
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.2.1
- * @updatetime    2019-3-1 13:04:57
+ * @updatetime    2019-3-1 13:36:18
  */
-define('IN_ZLS', '2.2.1.5');
+define('IN_ZLS', '2.2.1.6');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
@@ -4509,7 +4509,7 @@ abstract class Zls_Task
     {
         Z::throwIf(false === Z::forceUmask(function () use ($lockFilePath, $content) {
                 return file_put_contents($lockFilePath, $content);
-            }, 777), 500, 'can not create file : [ ' . $lockFilePath . ' ]', 'ERROR');
+            }), 500, 'can not create file : [ ' . $lockFilePath . ' ]', 'ERROR');
     }
     public function _execute($args)
     {
