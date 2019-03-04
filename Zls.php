@@ -6,9 +6,9 @@
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
  * @since         v2.2.1
- * @updatetime    2019-3-1 15:07:19
+ * @updatetime    2019-3-4 19:25:16
  */
-define('IN_ZLS', '2.2.1.7');
+define('IN_ZLS', '2.2.1.8');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
@@ -540,8 +540,7 @@ class Z
         $path = self::realPath($path);
         $siteRoot = is_bool($entr) ?self::realPath( '.', false,$entr) : $entr;
         $_path = str_replace($siteRoot, '', $path);
-        $relPath = str_replace($siteRoot, '', rtrim($entr, '/'));
-        return $prefix . str_replace($relPath, '', $_path);
+        return $prefix . str_replace($siteRoot, '', $_path);
     }
     /**
      * $_SERVER参数值
