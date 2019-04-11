@@ -954,6 +954,10 @@ class Z
             $cacheMethodName   = &$method;
             $methodKey         = $cacheClassName . ':' . $cacheMethodName;
             $cacheMethodConfig = $config->getMethodCacheConfig();
+            $cacheContents = false;
+            $callMethod = function () use ($controllerObject, $methodFull, $args) {
+                return call_user_func_array([$controllerObject, $methodFull], $args);
+            };
             if (
                 !empty($cacheMethodConfig)
                 && Z::arrayKeyExists($methodKey, $cacheMethodConfig)
@@ -962,23 +966,27 @@ class Z
             ) {
                 if (!($contents = Z::cache()->get($cacheMethoKey))) {
                     @ob_start();
-                    $response = call_user_func_array([$controllerObject, $methodFull], $args);
-                    $contents = @ob_get_clean();
-                    $contents .= is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
-                    Z::cache()->set($cacheMethoKey, $contents, $cacheMethodConfig[$methodKey]['time']);
+                    $contents = $callMethod();
+                    $cacheContents = @ob_get_clean();
                 }
             } elseif (!is_null($beforeRs)) {
                 $contents = $beforeRs;
             } elseif (!is_null($callRs)) {
                 $contents = $callRs;
             } else {
-                $response = call_user_func_array([$controllerObject, $methodFull], $args);
-                $contents = is_array($response) ? Z::view()->set($response)->load("$cacheClassName/$cacheMethodName") : $response;
+                $contents = $callMethod();
             }
-            if ($after) {
-                if (method_exists($controllerObject, 'after')) {
-                    $contents = $controllerObject->after($contents, $methodFull, $controller, $args, $class);
+            if ($after && method_exists($controllerObject, 'after')) {
+                $afterContents = $controllerObject->after($contents, $methodFull, $controller, $args, $class);
+                if (!is_null($afterContents)) {
+                    $contents = $afterContents;
                 }
+            }
+            if (is_array($contents)) {
+                $contents = Z::view()->set($contents)->load("$cacheClassName/$cacheMethodName");
+            }
+            if ($cacheContents !== false) {
+                Z::cache()->set($cacheMethoKey, $cacheContents . $contents, $cacheMethodConfig[$methodKey]['time']);
             }
             return is_numeric($contents) ? (string)$contents : $contents;
         } else {
@@ -1454,8 +1462,7 @@ class Z
             } elseif (!self::isCli()) {
                 header($content);
             }
-        } catch (\Exception $e) {
-        }
+        } catch (\Exception $e) { }
     }
     /**
      * 设置session配置
@@ -1742,9 +1749,9 @@ class Z
             $path = strstr(self::server('REQUEST_URI'), '?', true) ?: self::server('REQUEST_URI');
             if (!$path) {
                 $path = strstr(self::server('SCRIPT_NAME'), ZLS_PATH . '/' . ZLS_INDEX_NAME, true) . self::server(
-                        'PATH_INFO',
-                        self::server('REDIRECT_PATH_INFO')
-                    );
+                    'PATH_INFO',
+                    self::server('REDIRECT_PATH_INFO')
+                );
             }
             $host .= $path;
         }
@@ -2121,14 +2128,19 @@ class Z
      * @return bool
      * @internal param string $ip
      */
-    public static function isWhiteIp($clientIp)
+    public static function isWhiteIp($clientIp, $whitelist = null)
     {
-        $config  = Z::config();
-        $isWhite = false;
-        foreach ($config->getMaintainIpWhitelist() as $ip) {
+        $config = Z::config();
+        if (!is_array($whitelist)) {
+            $whitelist = $config->getMaintainIpWhitelist();
+        }
+        $isWhite      = false;
+        $clientIpLong = ip2long($clientIp);
+        foreach ($whitelist as $ip) {
             $info    = explode('/', $ip);
             $netmask = empty($info[1]) ? '32' : $info[1];
-            if ($info && Z::ipInfo($clientIp . '/' . $netmask, 'netaddress') == Z::ipInfo($info[0] . '/' . $netmask, 'netaddress')) {
+            $ipinfo  = Z::ipInfo($info[0] . '/' . $netmask);
+            if (($ipinfo['netaddress'] === $clientIp) || ($ipinfo['count'] > 0 && ($clientIpLong >= ip2long($ipinfo['start']) && $clientIpLong <= ip2long($ipinfo['end'])))) {
                 $isWhite = true;
                 break;
             }
@@ -2953,8 +2965,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
                         $select = ' TOP ' . $offset . ' ' . $select;
                     }
                 }
-            } else {
-            }
+            } else { }
             $limit = '';
         }
         $sql = "\n" . ' SELECT '
@@ -3957,8 +3968,7 @@ abstract class Zls_Database
                 foreach ($configGroup as $key => $config) {
                     if (!Z::arrayKeyExists($key, $connections)) {
                         // 如果需要,读取连接池
-                        if (true) {
-                        }
+                        if (true) { }
                         if ($this->_driverTypeIsString()) {
                             $options[PDO::ATTR_ERRMODE]           = PDO::ERRMODE_EXCEPTION;
                             $options[PDO::ATTR_PERSISTENT]        = $this->getPconnect();
@@ -4358,8 +4368,7 @@ abstract class Zls_Database
                     if (true == $this->getTrace()) {
                         $this->trace();
                     }
-                } catch (\Exception $e) {
-                }
+                } catch (\Exception $e) { }
             }
         }
         return $return;
@@ -4484,14 +4493,11 @@ abstract class Zls_Database
  * @method string execute($next, $method, $controllerShort, $args, $controller)
  */
 abstract class Zls_Controller
-{
-}
+{ }
 abstract class Zls_Model
-{
-}
+{ }
 abstract class Zls_Business
-{
-}
+{ }
 abstract class Zls_Task
 {
     protected $debug = false;
@@ -4509,8 +4515,8 @@ abstract class Zls_Task
     public function _filePutContents($lockFilePath, $content)
     {
         Z::throwIf(false === Z::forceUmask(function () use ($lockFilePath, $content) {
-                return file_put_contents($lockFilePath, $content);
-            }), 500, 'can not create file : [ ' . $lockFilePath . ' ]', 'ERROR');
+            return file_put_contents($lockFilePath, $content);
+        }), 500, 'can not create file : [ ' . $lockFilePath . ' ]', 'ERROR');
     }
     public function _execute($args)
     {
@@ -4691,7 +4697,7 @@ abstract class Zls_Task_Single extends Zls_Task
             $tempDirPath  = Z::config()->getStorageDirPath();
             $key          = md5(
                 Z::config()->getAppDir() . Z::config()->getClassesDirName() . '/'
-                . Z::config()->getTaskDirName() . '/' . str_replace('_', '/', get_class($this)) . '.php'
+                    . Z::config()->getTaskDirName() . '/' . str_replace('_', '/', get_class($this)) . '.php'
             );
             $lockFilePath = Z::realPathMkdir($tempDirPath . 'taskSingle', true, false, false, false) . $key . '.pid';
         }
@@ -5498,10 +5504,10 @@ class Zls_Config
     private $traceStatusCallBack = null;
     private $hmvcDomains = ['enable' => false, 'domains' => []];
     private $clientIpConditions
-        = [
-            'source' => ['REMOTE_ADDR', 'HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP'],
-            'check'  => ['HTTP_X_FORWARDED_FOR'],
-        ];
+    = [
+        'source' => ['REMOTE_ADDR', 'HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP'],
+        'check'  => ['HTTP_X_FORWARDED_FOR'],
+    ];
     /**
      * @return array
      */
@@ -5511,7 +5517,7 @@ class Zls_Config
     }
     public function getMaintainIpWhitelist()
     {
-        return $this->getSysConfig($this->maintainIpWhitelist, 'ipWhitelist', []);
+        return $this->getSysConfig($this->maintainIpWhitelist ?: null, 'ipWhitelist', []);
     }
     /**
      * @param array $maintainIpWhitelist
@@ -5525,7 +5531,7 @@ class Zls_Config
     public function getSysConfig($value, $key, $default = '')
     {
         if (is_null($value)) {
-            $value = z::config()->find('zls') ? Z::config('zls.' . $key) : $default;
+            $value = Z::config()->find('zls') ? Z::config('zls.' . $key) : $default;
         }
         return $value;
     }
