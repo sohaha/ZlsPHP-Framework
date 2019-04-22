@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.2.12
- * @updatetime    2019-4-11 13:53:26
+ * @since         v2.2.14
+ * @updatetime    2019-4-22 12:55:05
  */
-define('IN_ZLS', '2.2.12');
+define('IN_ZLS', '2.2.14');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
@@ -955,7 +955,7 @@ class Z
             $methodKey         = $cacheClassName . ':' . $cacheMethodName;
             $cacheMethodConfig = $config->getMethodCacheConfig();
             $cacheContents = false;
-            $callMethod = function () use ($controllerObject, $methodFull, $args) {
+            $callMethod = function () use($controllerObject,$methodFull,$args){
                 return call_user_func_array([$controllerObject, $methodFull], $args);
             };
             if (
@@ -978,15 +978,15 @@ class Z
             }
             if ($after && method_exists($controllerObject, 'after')) {
                 $afterContents = $controllerObject->after($contents, $methodFull, $controller, $args, $class);
-                if (!is_null($afterContents)) {
+                if(!is_null($afterContents)){
                     $contents = $afterContents;
                 }
             }
-            if (is_array($contents)) {
+            if(is_array($contents)){
                 $contents = Z::view()->set($contents)->load("$cacheClassName/$cacheMethodName");
             }
-            if ($cacheContents !== false) {
-                Z::cache()->set($cacheMethoKey, $cacheContents . $contents, $cacheMethodConfig[$methodKey]['time']);
+            if($cacheContents!==false){
+                Z::cache()->set($cacheMethoKey, $cacheContents.$contents, $cacheMethodConfig[$methodKey]['time']);
             }
             return is_numeric($contents) ? (string)$contents : $contents;
         } else {
@@ -1366,23 +1366,18 @@ class Z
         if (is_null($source)) {
             $source = $clientIpConditions['source'];
         }
-        array_walk($source, function (&$v) {
+        $source && array_walk($source, function (&$v) {
             $v = strtoupper($v);
         });
-        array_walk($check, function (&$v) {
+        $check && array_walk($check, function (&$v) {
             $v = strtoupper($v);
         });
-        $checkClientIp = function ($ip) {
+        $checkClientIp = function () {
+            $ip = self::server('REMOTE_ADDR');
             if (empty($ip)) {
                 return false;
             }
-            $whitelist = self::config()->getBackendServerIpWhitelist();
-            foreach ($whitelist as $okayIp) {
-                if ($okayIp == $ip) {
-                    return $ip;
-                }
-            }
-            return false;
+            return self::isWhiteIp($ip, self::config()->getBackendServerIpWhitelist());
         };
         $defaultIp     = '0.0.0.0';
         $filterIp      = function ($ip) use ($defaultIp) {
@@ -1393,7 +1388,7 @@ class Z
                 if (!in_array($v, $check)) {
                     return $filterIp($ip);
                 }
-                if ($ip = $checkClientIp($v)) {
+                if ($checkClientIp()) {
                     return $filterIp($ip);
                 } else {
                     continue;
@@ -1462,7 +1457,8 @@ class Z
             } elseif (!self::isCli()) {
                 header($content);
             }
-        } catch (\Exception $e) { }
+        } catch (\Exception $e) {
+        }
     }
     /**
      * 设置session配置
@@ -1543,7 +1539,18 @@ class Z
     }
     public static function postText($key = null, $default = null, $xssClean = true)
     {
-        parse_str(self::postRaw(), $input);
+        $input = [];
+        $expl = explode("&", self::postRaw());
+        foreach($expl as $r){
+            $tmp = explode("=", $r);
+            $v =  urldecode(self::arrayGet($tmp,1,''));
+            $k = explode('.',$tmp[0]);
+            if(count($k)>1){
+                self::arraySet($input,$tmp[0],$v);
+            }else{
+                $input[$k[0]] =$v;
+            }
+        }
         if (is_null($key)) {
             return $input;
         }
@@ -1749,9 +1756,9 @@ class Z
             $path = strstr(self::server('REQUEST_URI'), '?', true) ?: self::server('REQUEST_URI');
             if (!$path) {
                 $path = strstr(self::server('SCRIPT_NAME'), ZLS_PATH . '/' . ZLS_INDEX_NAME, true) . self::server(
-                    'PATH_INFO',
-                    self::server('REDIRECT_PATH_INFO')
-                );
+                        'PATH_INFO',
+                        self::server('REDIRECT_PATH_INFO')
+                    );
             }
             $host .= $path;
         }
@@ -2124,7 +2131,8 @@ class Z
     }
     /**
      * 检测ip是否在白名单内
-     * @param $clientIp
+     * @param      $clientIp
+     * @param null $whitelist
      * @return bool
      * @internal param string $ip
      */
@@ -2965,7 +2973,8 @@ class Zls_Database_ActiveRecord extends Zls_Database
                         $select = ' TOP ' . $offset . ' ' . $select;
                     }
                 }
-            } else { }
+            } else {
+            }
             $limit = '';
         }
         $sql = "\n" . ' SELECT '
@@ -3968,7 +3977,8 @@ abstract class Zls_Database
                 foreach ($configGroup as $key => $config) {
                     if (!Z::arrayKeyExists($key, $connections)) {
                         // 如果需要,读取连接池
-                        if (true) { }
+                        if (true) {
+                        }
                         if ($this->_driverTypeIsString()) {
                             $options[PDO::ATTR_ERRMODE]           = PDO::ERRMODE_EXCEPTION;
                             $options[PDO::ATTR_PERSISTENT]        = $this->getPconnect();
@@ -4368,7 +4378,8 @@ abstract class Zls_Database
                     if (true == $this->getTrace()) {
                         $this->trace();
                     }
-                } catch (\Exception $e) { }
+                } catch (\Exception $e) {
+                }
             }
         }
         return $return;
@@ -4493,11 +4504,14 @@ abstract class Zls_Database
  * @method string execute($next, $method, $controllerShort, $args, $controller)
  */
 abstract class Zls_Controller
-{ }
+{
+}
 abstract class Zls_Model
-{ }
+{
+}
 abstract class Zls_Business
-{ }
+{
+}
 abstract class Zls_Task
 {
     protected $debug = false;
@@ -4515,8 +4529,8 @@ abstract class Zls_Task
     public function _filePutContents($lockFilePath, $content)
     {
         Z::throwIf(false === Z::forceUmask(function () use ($lockFilePath, $content) {
-            return file_put_contents($lockFilePath, $content);
-        }), 500, 'can not create file : [ ' . $lockFilePath . ' ]', 'ERROR');
+                return file_put_contents($lockFilePath, $content);
+            }), 500, 'can not create file : [ ' . $lockFilePath . ' ]', 'ERROR');
     }
     public function _execute($args)
     {
@@ -4697,7 +4711,7 @@ abstract class Zls_Task_Single extends Zls_Task
             $tempDirPath  = Z::config()->getStorageDirPath();
             $key          = md5(
                 Z::config()->getAppDir() . Z::config()->getClassesDirName() . '/'
-                    . Z::config()->getTaskDirName() . '/' . str_replace('_', '/', get_class($this)) . '.php'
+                . Z::config()->getTaskDirName() . '/' . str_replace('_', '/', get_class($this)) . '.php'
             );
             $lockFilePath = Z::realPathMkdir($tempDirPath . 'taskSingle', true, false, false, false) . $key . '.pid';
         }
@@ -5504,10 +5518,10 @@ class Zls_Config
     private $traceStatusCallBack = null;
     private $hmvcDomains = ['enable' => false, 'domains' => []];
     private $clientIpConditions
-    = [
-        'source' => ['REMOTE_ADDR', 'HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP'],
-        'check'  => ['HTTP_X_FORWARDED_FOR'],
-    ];
+        = [
+            'source' => ['HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP', 'REMOTE_ADDR'],
+            'check'  => ['HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP'],
+        ];
     /**
      * @return array
      */
@@ -6207,7 +6221,13 @@ class Zls_Maintain_Handle_Default implements Zls_Maintain_Handle
         if (!Z::isCli()) {
             Z::header('Content-type: text/html;charset=utf-8');
         }
-        return '<center><h2>server is under maintenance</h2><h3>服务器维护中</h3>' . date('Y/m/d H:i:s e') . '</center>';
+        $en = 'server is under maintenance';
+        $zh = '服务器维护中';
+        if(Z::isAjax()){
+            return Z::json(503,$zh,$en);
+        }else{
+            return "<center><h2>{$en}</h2><h3>{$zh}</h3>" . date('Y/m/d H:i:s e') . '</center>';
+        }
     }
 }
 class Zls_Uri_Rewriter_Default implements Zls_Uri_Rewriter
