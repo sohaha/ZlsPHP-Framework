@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.3.0
- * @updatetime    2019-4-24 13:39:23
+ * @since         v2.3.0.1
+ * @updatetime    2019-4-24 15:50:09
  */
-define('IN_ZLS', '2.3.0');
+define('IN_ZLS', '2.3.0.1');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
@@ -881,13 +881,6 @@ class Z {
 					$methodFull = $requestMethodFull;
 				}
 			}
-			if ($middleware && method_exists($controllerObject, 'before')) {
-				$middlewares[] = function ($request, Closure $next) use ($controllerObject) {
-					list($method, $controllerShort, $args, $methodFull, $class) = $request;
-					$controllerObject->before($method, $controllerShort, $args, $methodFull, $class);
-					return $next($request);
-				};
-			}
 			$after = $middleware && method_exists($controllerObject, 'after') ? function ($contents, $method, $controllerShort, $args, $methodFull, $class) use ($controllerObject) {
 				$contents = $controllerObject->after($contents, $method, $controllerShort, $args, $methodFull, $class);
 				if (is_array($contents)) {
@@ -897,6 +890,13 @@ class Z {
 			} : function ($contents) {
 				return $contents;
 			};
+			if ($middleware && method_exists($controllerObject, 'before')) {
+				$middlewares[] = function ($request, Closure $next) use ($controllerObject, $after) {
+					list($method, $controllerShort, $args, $methodFull, $class) = $request;
+					$contents = $controllerObject->before($method, $controllerShort, $args, $methodFull, $class);
+					return is_null($contents) ? $next($request) : $after($contents, $method, $controllerShort, $args, $methodFull, $class);
+				};
+			}
 			if (!method_exists($controllerObject, $methodFull)) {
 				$containCall = method_exists($controllerObject, 'call');
 				Z::throwIf(!$containCall, 404, 'Method' . ($requestMethod ? "({$requestMethod})" : '') . ' [ ' . $class . '->' . $methodFull . '() ] not found');
