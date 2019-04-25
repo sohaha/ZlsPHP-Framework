@@ -5,8 +5,8 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.3.0.2
- * @updatetime    2019-4-25 12:14:40
+ * @since         v2.3.1
+ * @updatetime    2019-4-25 17:30:32
  */
 define('IN_ZLS', '2.3.0.2');
 define('ZLS_CORE_PATH', __FILE__);
@@ -97,7 +97,7 @@ class Z {
 	public static function eventBind($name, \Closure $fn) {
 		if ($events = self::di()->thing($name)) {
 			$events[] = $fn;
-			self::di()->bind($name, $events);
+			self::di()->bind($name, array_reverse($events));
 		} else {
 			self::di()->bind($name, [$fn]);
 		}
@@ -577,7 +577,7 @@ class Z {
 			self::cache()->reset();
 		}
 		self::clearDb();
-		self::di(true, true);
+		self::di(true);
 		self::removeGlobalData();
 		Zls_Logger_Dispatcher::setMemReverse();
 	}
@@ -891,7 +891,7 @@ class Z {
 			$after = $middleware && method_exists($controllerObject, 'after') ? function ($contents, $method, $controllerShort, $args, $methodFull, $class) use ($controllerObject) {
 				$contents = $controllerObject->after($contents, $method, $controllerShort, $args, $methodFull, $class);
 				if (is_array($contents)) {
-					$contents = Z::view()->set($contents)->load("$controllerShort/$method");
+					$contents = Z::view()->set($contents)->load("$controllerShort/$method", [], true);
 				}
 				return $contents;
 			} : function ($contents) {
@@ -2242,8 +2242,6 @@ class Zls {
 	}
 	/**
 	 * web模式运行
-	 * @param bool $result
-	 * @return bool|mixed|null|string
 	 * @throws Zls_Exception_Exit
 	 */
 	public static function runWeb() {
@@ -2357,7 +2355,7 @@ class Zls_Pipeline {
 	public function baseCarry() {
 		return function ($stack, $pipe) {
 			return function ($req) use ($stack, $pipe) {
-				return Zls::resultException(function () use ($stack, $pipe, $req) {
+				try {
 					if (!is_callable($pipe)) {
 						$obj = null;
 						try {
@@ -2369,7 +2367,9 @@ class Zls_Pipeline {
 					} else {
 						return $pipe($req, $stack);
 					}
-				});
+				} catch (\Zls_Exception_Exit $e) {
+					return $e->getMessage();
+				}
 			};
 		};
 	}
@@ -4523,9 +4523,14 @@ abstract class Zls_Exception extends \Exception {
 		}
 		$i = 1;
 		foreach ($trace as $e) {
+			$class = Z::arrayGet($e, 'class');
+			$function = Z::arrayGet($e, 'function');
+			if ($class === 'Zls_Pipeline' || (in_array($class, ['Zls', 'Z']) && in_array($function, ['{closure}', 'resultException', 'run', 'runWeb']))) {
+				continue;
+			}
 			$file = Z::safePath(Z::arrayGet($e, 'file'));
 			$line = Z::arrayGet($e, 'line');
-			$func = (!empty($e['class']) ? "{$e['class']}{$e['type']}{$e['function']}()" : "{$e['function']}()");
+			$func = (!empty($class) ? "{$class}{$e['type']}{$e['function']}()" : "{$function}()");
 			$str .= '' . ($i++) . ".{$func} " . ($line ? "[ line:{$line} {$file} ]" : '') . ($isCli ? "\n" : '<br/>');
 		}
 		$str .= $isCli ? "\n" : '</div>';
