@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.3.1
- * @updatetime    2019-4-25 17:30:32
+ * @since         v2.3.1.1
+ * @updatetime    2019-4-26 16:07:45
  */
-define('IN_ZLS', '2.3.0.2');
+define('IN_ZLS', '2.3.1.1');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
@@ -2102,15 +2102,19 @@ class Zls {
 			if ($config->getExceptionControl()) {
 				\Zls_Logger_Dispatcher::initialize();
 			}
-			if (Z::isCli() && !Z::isSwoole()) {
-				//todo 去掉is
-				self::runCli();
-			} elseif (Z::isPluginMode()) {
-				self::runPlugin();
-			} else {
-				self::initSession();
-				self::getConfig()->bootstrap();
-				echo self::runWeb();
+			try {
+				if (Z::isCli() && !Z::isSwoole()) {
+					//todo 去掉is
+					self::runCli();
+				} elseif (Z::isPluginMode()) {
+					self::runPlugin();
+				} else {
+					self::initSession();
+					self::getConfig()->bootstrap();
+					echo self::runWeb();
+				}
+			} catch (Zls_Exception_Exit $e) {
+				echo $e->getMessage();
 			}
 			Z::eventEmit('ZLS_DEFER');
 		}
