@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.3.1.1
- * @updatetime    2019-4-26 16:07:45
+ * @since         v2.3.2
+ * @updatetime    2019-4-30 16:43:45
  */
-define('IN_ZLS', '2.3.1.1');
+define('IN_ZLS', '2.3.2');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
@@ -369,20 +369,24 @@ class Z {
 	 * @return string
 	 */
 	public static function tempPath() {
-		if (!function_exists('sys_get_temp_dir')) {
-			$_tmpKeys = ['TMPDIR', 'TEMP', 'TMP', 'upload_tmp_dir'];
-			foreach ($_tmpKeys as $v) {
-				if (!empty($_ENV[$v])) {
-					return realpath($_ENV[$v]);
+		$path = function () {
+			if (!function_exists('sys_get_temp_dir')) {
+				$_tmpKeys = ['TMPDIR', 'TEMP', 'TMP', 'upload_tmp_dir'];
+				foreach ($_tmpKeys as $v) {
+					if (!empty($_ENV[$v])) {
+						return realpath($_ENV[$v]);
+					}
 				}
+				$tempfile = tempnam(uniqid(rand(), true), '');
+				if (file_exists($tempfile)) {
+					unlink($tempfile);
+					return realpath(dirname($tempfile));
+				}
+				return '/tmp';
 			}
-			$tempfile = tempnam(uniqid(rand(), true), '');
-			if (file_exists($tempfile)) {
-				unlink($tempfile);
-				return realpath(dirname($tempfile));
-			}
-		}
-		return sys_get_temp_dir();
+			return sys_get_temp_dir();
+		};
+		return self::realPath($path(), true);
 	}
 	/**
 	 * 追踪打印日志
@@ -1386,7 +1390,7 @@ class Z {
 		for ($index = count($ka) - 2; $index >= 0; --$index) {
 			$k = $ka[$index];
 			$nextK = $ka[$index + 1];
-			$a[$k] = array_merge($a[$k], [$nextK => $a[$nextK]]);
+			$a[$k] = [$nextK => $a[$nextK]] + $a[$k];
 		}
 		$arr[$ka[0]] = $a[$ka[0]];
 	}
@@ -1422,11 +1426,9 @@ class Z {
 		foreach ($expl as $r) {
 			$tmp = explode("=", $r);
 			$v = urldecode(self::arrayGet($tmp, 1, ''));
-			$k = explode('.', $tmp[0]);
-			if (count($k) > 1) {
-				self::arraySet($input, $tmp[0], $v);
-			} else {
-				$input[$k[0]] = $v;
+			$k = preg_replace('/(\[([0-9?])\])/', '.$2', self::arrayGet($tmp, 0, ''));
+			if ($k) {
+				self::arraySet($input, $k, $v);
 			}
 		}
 		if (is_null($key)) {
