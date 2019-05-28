@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.3.3
- * @updatetime    2019-5-13 11:40:40
+ * @since         v2.3.4
+ * @updatetime    2019-5-25 14:10:30
  */
-define('IN_ZLS', '2.3.3');
+define('IN_ZLS', '2.3.4');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
@@ -2130,13 +2130,9 @@ class Zls {
 		} catch (\Zls_Exception_Exit $e) {
 			return $e->getMessage();
 		} catch (\Exception $e) {
-			$code = $e->getCode();
-			if ($code) {
-				Z::header('HTTP/1.1 ' . $code);
-			}
-			return $e->getMessage();
+			return (new Zls_Exception_500($e->getMessage(), 500, 'Error', $e->getFile(), $e->getLine()))->render(null, true);
 		} catch (Throwable $e) {
-			// php 7
+// php 7
 			return (new Zls_Exception_500($e->getMessage(), 500, 'Error', $e->getFile(), $e->getLine()))->render(null, true);
 		}
 	}
