@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.3.4
- * @updatetime    2019-5-25 14:10:30
+ * @since         v2.3.5
+ * @updatetime    2019-6-11 12:25:30
  */
-define('IN_ZLS', '2.3.4');
+define('IN_ZLS', '2.3.5');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
@@ -340,7 +340,14 @@ class Z {
 		return true;
 	}
 	public static function swooleUuid($prefix = '') {
-		return $prefix . ((z::isSwoole()) ? z::swoole()->worker_id . '_' . \Swoole\Coroutine::getuid() : '0');
+		if (self::isSwoole()) {
+			$uuid = self::swoole()->worker_id . '_' . \Swoole\Coroutine::getuid();
+		} elseif (self::Config()->getUseMyid()) {
+			$uuid = getmypid();
+		} else {
+			$uuid = 0;
+		}
+		return $prefix . $uuid;
 	}
 	public static function wasteTime($time = null) {
 		$wasteTime = 0;
@@ -686,6 +693,15 @@ class Z {
 		}
 		@ob_start();
 		switch (true) {
+		case !in_array('popen', $disabled):
+			$fp = popen($cmd, 'r');
+			if ($logfile) {
+				while (!feof($fp)) {
+					echo fread($fp, 1024);
+				}
+			}
+			pclose($fp);
+			break;
 		case !in_array('shell_exec', $disabled):
 			echo shell_exec($cmd);
 			break;
@@ -698,15 +714,6 @@ class Z {
 			break;
 		case !in_array('system', $disabled):
 			system($cmd);
-			break;
-		case !in_array('popen', $disabled):
-			$fp = popen($cmd, 'r');
-			if ($logfile) {
-				while (!feof($fp)) {
-					echo fread($fp, 1024);
-				}
-			}
-			pclose($fp);
 			break;
 		default:
 			@ob_end_clean();
@@ -4430,6 +4437,12 @@ abstract class Zls_Task_Single extends Zls_Task {
 	}
 }
 abstract class Zls_Task_Multiple extends Zls_Task {
+	final private function getCurrentPids($lockFilePath) {
+		if (file_exists($lockFilePath)) {
+			return explode("\n", file_get_contents($lockFilePath));
+		}
+		return [];
+	}
 	public function _execute($args) {
 		$class = get_class($this);
 		$startTime = Z::microtime();
@@ -4457,11 +4470,21 @@ abstract class Zls_Task_Multiple extends Zls_Task {
 				}
 			}
 		}
-		$alivedPids[] = getmypid();
+		$getmypid = (string) getmypid();
+		$alivedPids[] = $getmypid;
 		$this->_filePutContents($lockFilePath, join("\n", $alivedPids));
 		$this->_log('update pid file [ ' . $lockFilePath . ' ]');
 		$this->execute($args);
-		$this->_log('clean pid file [ ' . $lockFilePath . ' ]');
+		$currentPids = Z::arrayFilter($this->getCurrentPids($lockFilePath), function ($v) use ($getmypid) {
+			return $v !== $getmypid;
+		});
+		if ($currentPids) {
+			$this->_filePutContents($lockFilePath, join("\n", $currentPids));
+			$this->_log('clean current pid [ ' . $getmypid . ' ]');
+		} else {
+			@unlink($lockFilePath);
+			$this->_log('clean pid file [ ' . $lockFilePath . ' ]');
+		}
 		$this->_log('Multiple Task [ ' . $class . ' ] end , use time ' . (Z::microtime() - $startTime) . ' ms');
 	}
 	abstract protected function getMaxCount();
@@ -5150,6 +5173,7 @@ class Zls_Config {
 	private $zMethods = [];
 	private $encryptKey;
 	private $apiDocToken = '';
+	private $useMyid = false;
 	private $exceptionMemoryReserveSize = 256000;
 	private $separationRouter = false;
 	private $traceStatusCallBack = null;
