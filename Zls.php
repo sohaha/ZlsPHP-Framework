@@ -1,14 +1,14 @@
 <?php
 /**
- * Zls.
+ * Zls
  * @author        影浅
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.3.5
- * @updatetime    2019-6-11 12:25:30
+ * @since         v2.3.6
+ * @updatetime    2019-6-14 13:25:30
  */
-define('IN_ZLS', '2.3.5');
+define('IN_ZLS', '2.3.6');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
@@ -628,12 +628,15 @@ class Z {
 			$argc = ' ' . $args;
 		}
 		$index = ZLS_PATH . ZLS_INDEX_NAME;
-		if (!self::isWin() && (!$user && '' !== $user)) {
-			$user = trim(self::command('whoami', '', true));
+		if (!self::isWin() && (is_null($user) || $user === '')) {
+			$user = self::whoami();
 		}
 		$cmd = "{$phpPath} {$index}  -task {$taksName}{$argc}";
 		self::command($cmd, $user, $logFile);
 		return $cmd;
+	}
+	public static function whoami() {
+		return trim(self::command('whoami', '', true));
 	}
 	/**
 	 * 获取php执行路径
@@ -688,7 +691,10 @@ class Z {
 			if (self::isWin()) {
 				$cmd = "start /b {$cmd} " . ($exportLogfile ? '>> ' . $exportLogfile : '> NUL');
 			} else {
-				$cmd = ($user ? 'sudo -u ' . $user . ' ' . $cmd : $cmd) . ' ' . ($exportLogfile ? '>> ' . $exportLogfile : '> /dev/null') . ' 2>&1 &';
+				if ($user && $user !== self::whoami()) {
+					$cmd = 'sudo -u ' . $user . ' ' . $cmd;
+				}
+				$cmd .= ' ' . ($exportLogfile ? '>> ' . $exportLogfile : '> /dev/null') . ' 2>&1 &';
 			}
 		}
 		@ob_start();
