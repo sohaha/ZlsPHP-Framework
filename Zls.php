@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.3.6
- * @updatetime    2019-6-14 13:25:30
+ * @since         v2.3.7
+ * @updatetime    2019-06-28 19:35:26
  */
-define('IN_ZLS', '2.3.6');
+define('IN_ZLS', '2.3.7');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
@@ -327,7 +327,7 @@ class Z {
 			return array_keys($di);
 		} elseif (!$remove) {
 			if (!$isset) {
-				$di[$uuid] = new \Zls_Di();
+				$di[$uuid] = new Zls_Di();
 				if ($uuid !== '0') {
 					$di[$uuid]->merge($di['0']);
 				}
@@ -363,7 +363,6 @@ class Z {
 	 * @return float
 	 */
 	public static function microtime() {
-		// 获取当前毫秒时间戳
 		list($s1, $s2) = explode(' ', microtime());
 		$currentTime = (float) sprintf('%.0f', (floatval($s1) + floatval($s2)) * 1000);
 		return $currentTime;
@@ -423,17 +422,16 @@ class Z {
 	 * @param string $type
 	 * @param bool   $debug
 	 * @return bool|Zls_Trace
-	 * @throws Exception
 	 */
 	public static function log($log = '', $type = 'log', $debug = false) {
-		if (!$state = self::tap(self::config()->getTraceStatus(), function (&$state) use ($type) {
+		if (!self::tap(self::config()->getTraceStatus(), function (&$state) use ($type) {
 			if (is_array($state)) {
 				$state = self::arrayGet($state, $type, true);
 			}
 		})) {
 			return false;
 		}
-		$trace = new \Zls_Trace();
+		$trace = new Zls_Trace();
 		if ((bool) $type) {
 			if ($debug) {
 				$debug = self::debug(null, false, true, false);
@@ -526,6 +524,18 @@ class Z {
 		$siteRoot = is_bool($entr) ? self::realPath('.', false, $entr) : $entr;
 		$_path = str_replace($siteRoot, '', $path);
 		return $prefix . str_replace($siteRoot, '', $_path);
+	}
+	/**
+	 * 路径是否在指定目录范围内
+	 * @return bool
+	 */
+	public function inPath($path, $target, $children = true) {
+		$path = self::realPath($path);
+		$target = self::realPath($target);
+		if ($children && self::strBeginsWith($path, $target)) {
+			return true;
+		}
+		return $path === $target;
 	}
 	/**
 	 * $_SERVER参数值
@@ -816,7 +826,7 @@ class Z {
 		if (!self::di()->has($className)) {
 			self::di()->bind($className, ['class' => $className, 'hmvc' => $hmvcModuleName]);
 		}
-		return (true !== $shared) ? self::di()->make($className, $args) : self::di()->makeShared($className, $args);
+		return !$shared ? self::di()->make($className, $args) : self::di()->makeShared($className, $args);
 	}
 	/**
 	 * 验证字符串结尾
@@ -886,9 +896,10 @@ class Z {
 			$class = z::strBeginsWith($controller, 'Controller') || z::strBeginsWith($controller, '\\') ? $controller : Zls::getConfig()->getControllerDirName() . '_' . $controller;
 			Z::throwIf(!Z::classIsExists($class), 404, 'Controller [ ' . $class . ' ] not found');
 			$controllerObject = self::factory($class, true);
+			$originalClass = str_replace('_', '\\', $class);
 		} else {
 			$controllerObject = $controller;
-			$class = get_class($controllerObject);
+			$originalClass = $class = get_class($controllerObject);
 		}
 		Z::throwIf(!($controllerObject instanceof Zls_Controller), 500, '[ ' . $class . ' ] not a valid Zls_Controller', 'ERROR');
 		$config = self::config();
@@ -916,28 +927,28 @@ class Z {
 			};
 			if ($middleware && method_exists($controllerObject, 'before')) {
 				$middlewares[] = function ($request, Closure $next) use ($controllerObject, $after) {
-					list($method, $controllerShort, $args, $methodFull, $class) = $request;
-					$contents = $controllerObject->before($method, $controllerShort, $args, $methodFull, $class);
-					return is_null($contents) ? $next($request) : $after($contents, $method, $controllerShort, $args, $methodFull, $class);
+					$contents = $controllerObject->before($request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $request['class']);
+					return is_null($contents) ? $next($request) : $after($contents, $request->method, $request->controllerShort, $request->args, $request->methodFull, $request->class);
 				};
 			}
 			if (!method_exists($controllerObject, $methodFull)) {
 				$containCall = method_exists($controllerObject, 'call');
 				Z::throwIf(!$containCall, 404, 'Method' . ($requestMethod ? "({$requestMethod})" : '') . ' [ ' . $class . '->' . $methodFull . '() ] not found');
 				$middlewares[] = function ($request, Closure $next) use ($after, $controllerObject) {
-					list($method, $controllerShort, $args, $methodFull, $class) = $request;
-					$contents = $controllerObject->call($method, $controllerShort, $args, $methodFull, $class);
-					return $after($contents, $method, $controllerShort, $args, $methodFull, $class);
+					$contents = $controllerObject->call($request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $request['class']);
+					return $after($contents, $request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $request['class']);
 				};
 			} elseif ($after) {
 				$middlewares[] = function ($request, Closure $next) use ($after) {
 					$contents = $next($request);
-					list($method, $controllerShort, $args, $methodFull, $class) = $request;
-					return $after($contents, $method, $controllerShort, $args, $methodFull, $class);
+					return $after($contents, $request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $request['class']);
 				};
 			}
-			return (new Zls_Pipeline)->send([$method, $controllerShort, $args, $methodFull, $class])->then($middlewares, function () use ($controllerObject, $methodFull, $args) {
-				return call_user_func_array([$controllerObject, $methodFull], $args);
+			$sendData = ['originalClass' => $originalClass, 'method' => $method, 'controllerShort' => $controllerShort, 'args' => $args, 'methodFull' => $methodFull, 'class' => $class];
+			return (new Zls_Pipeline)->send($sendData)->then($config->getHttpMiddleware(), function () use ($middlewares, $sendData, $controllerObject, $methodFull, $args) {
+				return (new Zls_Pipeline)->send($sendData)->then($middlewares, function () use ($controllerObject, $methodFull, $args) {
+					return call_user_func_array([$controllerObject, $methodFull], $args);
+				});
 			});
 		} else {
 			return $controllerObject;
@@ -2126,7 +2137,9 @@ class Zls {
 				} else {
 					self::initSession();
 					self::getConfig()->bootstrap();
-					echo self::runWeb();
+					echo self::resultException(function () {
+						return self::runWeb();
+					});
 				}
 			} catch (Zls_Exception_Exit $e) {
 				echo $e->getMessage();
@@ -2145,7 +2158,7 @@ class Zls {
 		} catch (\Exception $e) {
 			return (new Zls_Exception_500($e->getMessage(), 500, 'Error', $e->getFile(), $e->getLine()))->render(null, true);
 		} catch (Throwable $e) {
-// php 7
+			// php 7
 			return (new Zls_Exception_500($e->getMessage(), 500, 'Error', $e->getFile(), $e->getLine()))->render(null, true);
 		}
 	}
@@ -2282,8 +2295,8 @@ class Zls {
 				break;
 			} elseif ($route === true) {
 				$contents = '';
-			} elseif (is_array($route)) {
-				Z::throwIf(true, 500, 'Cannot output array type, please use "return Z::view()->load($view, $data)"');
+			} else {
+				Z::throwIf(is_array($route), 500, 'Cannot output array type, please use "return Z::view()->load($view, $data)"');
 			}
 		}
 		if ($config->getIsMaintainMode()) {
@@ -2339,17 +2352,22 @@ class Zls {
 				}
 				return '';
 			}
-			$contents = (new Zls_Pipeline)->send([$class, $method, $_route->getArgs()])->then(self::getConfig()->getHttpMiddleware(), function () use ($class, $method, $config, $_route) {
-				return self::resultException(function () use ($class, $method, $config, $_route) {
-					return Z::controller($class, substr($method, strlen($config->getMethodPrefix())), $_route->getArgs(), null, true, true);
-				});
-			});
+			$contents = Z::controller($class, substr($method, strlen($config->getMethodPrefix())), $_route->getArgs(), null, true, true);
+			// $contents = self::resultException(function () use ($class, $method, $config, $_route) {
+			//     });
+			// });
 		}
 		return $contents;
 	}
 }
 class Zls_Pipeline {
 	private $req;
+	public $useAspect = false;
+	static private $classObj = [];
+	public function setAspect($status) {
+		$this->useAspect = $status;
+		return $this;
+	}
 	public function send($req) {
 		$this->req = $req;
 		return $this;
@@ -2360,25 +2378,81 @@ class Zls_Pipeline {
 	}
 	public function carry() {
 		return function ($stack, $pipe) {
-			return function ($req) use ($stack, $pipe) {
+			return function ($req = []) use ($stack, $pipe) {
 				$slice = $this->baseCarry();
 				$callable = $slice($stack, $pipe);
 				return $callable($req);
 			};
 		};
 	}
+	public function drawReq(array $req) {
+		$currentClass = $req['originalClass'];
+		$currentMethodType = null;
+		$currentData = explode(Zls::getConfig()->getMethodPrefix(), strtolower($req['methodFull']));
+		$currentMethod = $currentData[1];
+		$currentMethodType = $currentData[0] ?: null;
+		return [$currentClass, $currentMethod, $currentMethodType];
+	}
+	public function drawClass($classes) {
+		$method = $type = null;
+		if (strpos($classes, '@')) {
+			$classeData = explode('@', $classes);
+			if (count($classeData) < 3) {
+				list($class, $method) = $classeData;
+			} else {
+				list($class, $method, $type) = $classeData;
+				$type = (($type = strtolower($type)) && $type === 'get') ? null : $type;
+			}
+		} else {
+			$class = $classes;
+		}
+		return [$class, strtolower($method), $type];
+	}
+	private function whetherItMatches($str, $key) {
+		if ($key === $str) {
+			return true;
+		}
+		$p = strpos($str, '*');
+		return $p > 0 ? Z::strBeginsWith($key, substr($str, 0, $p)) : false;
+	}
+	public function aspect(Zls_Middleware $obj, \Closure $stack, array $classes, array $req) {
+		$current = $this->drawReq($req);
+		foreach ($classes as $_class) {
+			$ClassData = $this->drawClass($_class);
+			list($class, $method, $type) = $ClassData;
+			$eqClass = $this->whetherItMatches($class, $current[0]);
+			if (!$eqClass) {
+				continue;
+			}
+			switch (true) {
+			case $ClassData === $current:
+			case !$method:
+			case ($methodOk = $this->whetherItMatches($method, $current[1])):
+			case is_null($type) && $methodOk:
+			case (is_null($current[2]) || $current[2] === $type) && $methodOk:
+				return $obj->handle($req, $stack);
+			}
+		}
+		return $stack($req);
+	}
 	public function baseCarry() {
 		return function ($stack, $pipe) {
 			return function ($req) use ($stack, $pipe) {
 				try {
 					if (!is_callable($pipe)) {
-						$obj = null;
-						try {
+						$className = md5($pipe);
+						if (isset(self::$classObj[$className])) {
+							$obj = self::$classObj[$className];
+						} else {
 							$obj = Z::factory($pipe);
-						} catch (\Zls_Exception_500 $e) {
+							Z::throwIf(!($obj instanceof Zls_Middleware), 500, '[ ' . $pipe . ' ] not a valid Zls_Middleware', 'ERROR');
+							self::$classObj[$className] = $obj;
 						}
-						Z::throwIf(!($obj instanceof Zls_Middleware), 500, '[ ' . $pipe . ' ] not a valid Zls_Middleware', 'ERROR');
-						return $obj->handle($req, $stack);
+						if ($classes = $obj->classes($req)) {
+							return $this->aspect($obj, $stack, $classes, $req);
+						} else {
+							return $obj->handle($req, $stack);
+						}
 					} else {
 						return $pipe($req, $stack);
 					}
@@ -2478,7 +2552,7 @@ class Zls_Di {
 	}
 	public function makeShared($name, $args = []) {
 		$original = $name;
-		if ((bool) $args) {
+		if (!!$args) {
 			$name = $name . ':' . json_encode($args);
 		}
 		if (!isset($this->_instances[$name])) {
@@ -3476,6 +3550,10 @@ class Zls_Database_Resultset {
 }
 abstract class Zls_Middleware {
 	abstract public function handle($request, \Closure $next);
+	/**
+	 * @return array
+	 */
+	abstract public function classes($request);
 }
 abstract class Zls_Bean {
 	protected static $noTransform = false;
@@ -4556,7 +4634,7 @@ abstract class Zls_Exception extends \Exception {
 		foreach ($trace as $e) {
 			$class = Z::arrayGet($e, 'class');
 			$function = Z::arrayGet($e, 'function');
-			if ($class === 'Zls_Pipeline' || (in_array($class, ['Zls', 'Z']) && in_array($function, ['{closure}', 'resultException', 'run', 'runWeb']))) {
+			if (Z::strBeginsWith($class, 'Zls_Exception') || in_array($class, ['Zls_Pipeline']) || (in_array($class, ['Z', 'Zls']) && in_array($function, ['{closure}', 'resultException']))) {
 				continue;
 			}
 			$file = Z::safePath(Z::arrayGet($e, 'file'));
