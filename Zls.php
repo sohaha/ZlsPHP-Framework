@@ -1,15 +1,14 @@
 <?php
 /**
  * Zls
- *
  * @author        影浅
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.3.7.1
- * @updatetime    2019-07-02 16:11:59
+ * @since         v2.3.7.2
+ * @updatetime    2019-07-05 16:33:44
  */
-define('IN_ZLS', '2.3.7.1');
+define('IN_ZLS', '2.3.7.2');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
@@ -91,13 +90,13 @@ class Z {
 	/**
 	 * 延迟执行
 	 */
-	public static function defer(\Closure $fn) {
+	public static function defer(Callable $fn) {
 		self::eventBind('ZLS_DEFER', $fn);
 	}
 	/**
 	 * 绑定事件
 	 */
-	public static function eventBind($name, \Closure $fn) {
+	public static function eventBind($name, Callable $fn) {
 		if ($events = self::di()->thing($name)) {
 			$events[] = $fn;
 			self::di()->bind($name, array_reverse($events));
@@ -136,7 +135,7 @@ class Z {
 	 * 简化临时变量
 	 *
 	 * @param string|array $value
-	 * @param Closure      $callback
+	 * @param Callable     $callback
 	 *
 	 * @return string|object|array
 	 */
@@ -378,7 +377,6 @@ class Z {
 	}
 	/**
 	 * 获取当前UNIX毫秒时间戳
-	 *
 	 * @return float
 	 */
 	public static function microtime() {
@@ -391,7 +389,6 @@ class Z {
 	}
 	/**
 	 * 获取系统临时目录路径
-	 *
 	 * @return string
 	 */
 	public static function tempPath() {
@@ -557,7 +554,6 @@ class Z {
 	}
 	/**
 	 * 路径是否在指定目录范围内
-	 *
 	 * @return bool
 	 */
 	public function inPath($path, $target, $children = true) {
@@ -692,7 +688,6 @@ class Z {
 	}
 	/**
 	 * 获取php执行路径
-	 *
 	 * @return mixed|string
 	 */
 	public static function phpPath() {
@@ -721,7 +716,6 @@ class Z {
 	}
 	/**
 	 * Windows环境
-	 *
 	 * @return bool
 	 */
 	public static function isWin() {
@@ -798,9 +792,9 @@ class Z {
 	/**
 	 * 扫描目录文件
 	 *
-	 * @param              $dir
-	 * @param int          $depth
-	 * @param null|Closure $fn
+	 * @param               $dir
+	 * @param int           $depth
+	 * @param null|Callable $fn
 	 *
 	 * @return array
 	 */
@@ -809,7 +803,7 @@ class Z {
 		if (is_dir($dir)) {
 			if ($dh = opendir($dir)) {
 				while (false !== ($file = readdir($dh))) {
-					if ($depth >= 0 && '.' != $file && '..' != $file && !(($fn instanceof Closure) && (false === $fn($dir, $file)))) {
+					if ($depth >= 0 && '.' != $file && '..' != $file && !(is_callable($fn) && (false === $fn($dir, $file)))) {
 						if ((is_dir($dir . '/' . $file))) {
 							$dirs['folder'][$file] = self::scanFile($dir . '/' . $file . '/', $depth - 1);
 						} else {
@@ -933,7 +927,6 @@ class Z {
 	}
 	/**
 	 * 判断是否是插件模式运行
-	 *
 	 * @return bool
 	 */
 	public static function isPluginMode() {
@@ -989,7 +982,7 @@ class Z {
 				return $contents;
 			};
 			if ($middleware && method_exists($controllerObject, 'before')) {
-				$middlewares[] = function ($request, Closure $next) use ($controllerObject, $after) {
+				$middlewares[] = function ($request, Callable $next) use ($controllerObject, $after) {
 					$contents = $controllerObject->before($request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $request['class']);
 					return is_null($contents) ? $next($request) : $after($contents, $request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $request['class']);
 				};
@@ -997,12 +990,12 @@ class Z {
 			if (!method_exists($controllerObject, $methodFull)) {
 				$containCall = method_exists($controllerObject, 'call');
 				Z::throwIf(!$containCall, 404, 'Method' . ($requestMethod ? "({$requestMethod})" : '') . ' [ ' . $class . '->' . $methodFull . '() ] not found');
-				$middlewares[] = function ($request, Closure $next) use ($after, $controllerObject) {
+				$middlewares[] = function ($request, Callable $next) use ($after, $controllerObject) {
 					$contents = $controllerObject->call($request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $request['class']);
 					return $after($contents, $request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $request['class']);
 				};
 			} elseif ($after) {
-				$middlewares[] = function ($request, Closure $next) use ($after) {
+				$middlewares[] = function ($request, Callable $next) use ($after) {
 					$contents = $next($request);
 					return $after($contents, $request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $request['class']);
 				};
@@ -1035,7 +1028,12 @@ class Z {
 	 * @param string $msg
 	 */
 	public static function end($msg = '') {
-		throw new Zls_Exception_Exit($msg);
+		if (self::config()->runState) {
+			throw new Zls_Exception_Exit($msg);
+		} else {
+			echo $msg;
+			exit;
+		}
 	}
 	/**
 	 * @return Zls_View
@@ -1561,7 +1559,6 @@ class Z {
 	}
 	/**
 	 * 服务器的ip
-	 *
 	 * @return string
 	 */
 	public static function serverIp() {
@@ -1569,7 +1566,6 @@ class Z {
 	}
 	/**
 	 * 服务器的hostname
-	 *
 	 * @return string
 	 */
 	public static function hostname() {
@@ -1577,7 +1573,6 @@ class Z {
 	}
 	/**
 	 * 数组扁平化
-	 *
 	 * @return array
 	 */
 	public static function arrayValues($arr, $key, $default = null, $explode = true, $keepKey = true) {
@@ -1596,13 +1591,13 @@ class Z {
 	/**
 	 * 遍历数组并传递每个值给给定回调
 	 *
-	 * @param array   $arr
-	 * @param Closure $closure
-	 * @param bool    $keepKey 保持key值
+	 * @param array    $arr
+	 * @param Callable $closure
+	 * @param bool     $keepKey 保持key值
 	 *
 	 * @return array
 	 */
-	public static function arrayMap($arr, Closure $closure, $keepKey = true) {
+	public static function arrayMap($arr, Callable $closure, $keepKey = true) {
 		return $keepKey ? array_map($closure, $arr) : array_map($closure, $arr, array_keys($arr));
 	}
 	public static function createSqlite3Database($path) {
@@ -1611,14 +1606,14 @@ class Z {
 	/**
 	 * 获取缓存数据,不存在则写入
 	 *
-	 * @param         $key
-	 * @param Closure $closure
-	 * @param int     $time
-	 * @param null    $cacheType
+	 * @param          $key
+	 * @param Callable $closure
+	 * @param int      $time
+	 * @param null     $cacheType
 	 *
 	 * @return mixed
 	 */
-	public static function cacheDate($key, \Closure $closure, $time = 600, $cacheType = null) {
+	public static function cacheDate($key, Callable $closure, $time = 600, $cacheType = null) {
 		$data = self::cache($cacheType)->get($key);
 		if (!$data) {
 			$data = $closure();
@@ -1885,7 +1880,6 @@ class Z {
 	}
 	/**
 	 * 获取数据库操作对象
-	 *
 	 * @staticvar array $instances   数据库单例容器
 	 *
 	 * @param string|array $group         配置组名称
@@ -2143,7 +2137,6 @@ class Z {
 	}
 	/**
 	 * 判断是否是ajax请求，只对xmlhttprequest的ajax请求有效
-	 *
 	 * @return bool
 	 */
 	public static function isAjax() {
@@ -2181,7 +2174,6 @@ class Zls {
 	}
 	/**
 	 * 获取运行配置
-	 *
 	 * @return Zls_Config
 	 */
 	public static function &getConfig() {
@@ -2200,7 +2192,7 @@ class Zls {
 	 */
 	public static function initialize($timeZone = 'PRC') {
 		date_default_timezone_set($timeZone);
-		$zlsConfig = self::getConfig();
+		$config = self::getConfig();
 		if (function_exists('__autoload')) {
 			spl_autoload_register('__autoload');
 		}
@@ -2218,16 +2210,18 @@ class Zls {
 			'cookie' => isset($_COOKIE) ? $_COOKIE : [],
 			'session' => isset($_SESSION) ? $_SESSION : [],
 		]);
-		$zlsConfig->setAppDir(ZLS_APP_PATH);
-		$zlsConfig->addPackage(ZLS_APP_PATH);
-		$zlsConfig->composer();
-		return $zlsConfig;
+		$config->setAppDir(ZLS_APP_PATH);
+		$config->addPackage(ZLS_APP_PATH);
+		$config->composer();
+		$config->runState = false;
+		return $config;
 	}
 	/**
 	 * 运行调度
 	 */
 	public static function run() {
 		$config = Zls::getConfig();
+		$config->runState = true;
 		if (!in_array($config->getRequest()->getPathInfo(), ['/favicon.ico'], true)) {
 			$exceptionLevel = $config->getExceptionLevel();
 			error_reporting(empty($exceptionLevel) ? E_ALL ^ E_DEPRECATED : $config->getExceptionLevel());
@@ -2254,7 +2248,7 @@ class Zls {
 		}
 		return true;
 	}
-	public static function resultException(\Closure $fn) {
+	public static function resultException(Callable $fn) {
 		try {
 			return $fn();
 		} catch (\Zls_Exception $e) {
@@ -2378,7 +2372,6 @@ class Zls {
 	}
 	/**
 	 * web模式运行
-	 *
 	 * @throws Zls_Exception_Exit
 	 */
 	public static function runWeb() {
@@ -2481,7 +2474,7 @@ class Zls_Pipeline {
 		$this->req = $req;
 		return $this;
 	}
-	public function then(array $middlewares, \Closure $destination) {
+	public function then(array $middlewares, Callable $destination) {
 		$pipeline = array_reduce(array_reverse($middlewares), $this->carry(), $destination);
 		return $pipeline($this->req);
 	}
@@ -2524,7 +2517,7 @@ class Zls_Pipeline {
 		$p = strpos($str, '*');
 		return $p > 0 ? Z::strBeginsWith($key, substr($str, 0, $p)) : false;
 	}
-	public function aspect(Zls_Middleware $obj, \Closure $stack, array $classes, array $req) {
+	public function aspect(Zls_Middleware $obj, Callable $stack, array $classes, array $req) {
 		$current = $this->drawReq($req);
 		foreach ($classes as $_class) {
 			$ClassData = $this->drawClass($_class);
@@ -2680,7 +2673,7 @@ class Zls_Di {
 			}
 			$definition = $definition['class'];
 		}
-		if (!$definition instanceof Closure) {
+		if (!is_callable($definition)) {
 			$definition = $this->getClosure($definition, (array) $args);
 		}
 		return call_user_func_array($definition, $args);
@@ -2901,9 +2894,9 @@ class Zls_Database_ActiveRecord extends Zls_Database {
 	/**
 	 * 查询表
 	 *
-	 * @param string|array|Closure $from
-	 * @param string               $as 别名
-	 * @param bool                 $wrap
+	 * @param string|array|Callable $from
+	 * @param string                $as 别名
+	 * @param bool                  $wrap
 	 *
 	 * @return $this
 	 */
@@ -2914,7 +2907,7 @@ class Zls_Database_ActiveRecord extends Zls_Database {
 				$from = $as;
 				$as = '';
 			}
-		} elseif ($from instanceof Closure) {
+		} elseif (is_callable($from)) {
 			$_db = $this->cloneDb();
 			$from($_db);
 			$from = ' (' . $_db->getSql() . ') ';
@@ -2937,7 +2930,6 @@ class Zls_Database_ActiveRecord extends Zls_Database {
 	}
 	/**
 	 * 获取sql语句
-	 *
 	 * @return mixed|string
 	 */
 	public function getSql() {
@@ -3044,7 +3036,7 @@ class Zls_Database_ActiveRecord extends Zls_Database {
 					if (is_array($v) && empty($v)) {
 						$hasEmptyIn = true;
 						break;
-					} elseif ($v instanceof Closure) {
+					} elseif (is_callable($v)) {
 						$_db = $this->cloneDb();
 						$v($_db);
 						$v = [' (' . $_db->getSql() . ') ', $_db->getSqlValues()];
@@ -3565,7 +3557,6 @@ class Zls_Database_Resultset {
 	}
 	/**
 	 * 读取数据总数
-	 *
 	 * @return int
 	 */
 	public function total() {
@@ -3704,7 +3695,7 @@ class Zls_Database_Resultset {
 	}
 }
 abstract class Zls_Middleware {
-	abstract public function handle($request, \Closure $next);
+	abstract public function handle($request, Callable $next);
 	/**
 	 * @return array
 	 */
@@ -3825,7 +3816,6 @@ abstract class Zls_Database {
 	}
 	/**
 	 * 锁定数据库连接，后面的读写都使用同一个主数据库连接
-	 *
 	 * @return $this
 	 */
 	public function lock() {
@@ -3834,7 +3824,6 @@ abstract class Zls_Database {
 	}
 	/**
 	 * 解锁数据库连接，后面的读写使用不同的数据库连接
-	 *
 	 * @return $this
 	 */
 	public function unlock() {
@@ -3843,7 +3832,6 @@ abstract class Zls_Database {
 	}
 	/**
 	 * 获取上一条数据id（主键）
-	 *
 	 * @return int
 	 */
 	public function lastId() {
@@ -4002,7 +3990,7 @@ abstract class Zls_Database {
 							}
 						} else {
 							$db = $this->getDriverType();
-							$connections[$key] = ($db instanceof Closure) ? $db() : $db;
+							$connections[$key] = is_callable($db) ? $db() : $db;
 						}
 						$getAttribute = $this->getAttribute();
 						if (!empty($getAttribute) && is_array($getAttribute)) {
@@ -4202,8 +4190,8 @@ abstract class Zls_Database {
 		$sql = $sql ? $this->_checkPrefixIdentifier($sql) : $this->getSql();
 		$values = !empty($values) ? $values : $this->_getValues();
 		$resetSql = $this->resetSql();
-		if ($resetSql instanceof Closure) {
-			$middleware[] = function ($request, \Closure $next) use ($resetSql) {
+		if (is_callable($resetSql)) {
+			$middleware[] = function ($request, Callable $next) use ($resetSql) {
 				list($sql, $values, $pdo) = $request;
 				$resetSql($sql, $values, $this->vsprintfSql($sql, $values));
 				return $next([$sql, $values, $pdo]);
@@ -4410,7 +4398,6 @@ abstract class Zls_Database {
 	}
 	/**
 	 * 数据库连接是否处于锁定状态
-	 *
 	 * @return bool
 	 */
 	public function isLocked() {
@@ -5402,6 +5389,7 @@ class Zls_Config {
 	private $cookiePrefix = '';
 	private $backendServerIpWhitelist = [];
 	private $isRewrite = true;
+	private $runState = true;
 	private $request;
 	private $showError;
 	private $traceStatus = false;
@@ -6240,7 +6228,7 @@ class Zls_Trace {
 		}
 		$content = $prefix . PHP_EOL . $debug . $content;
 		$callBack = Z::config()->getTraceStatusCallBack();
-		if ($callBack instanceof Closure) {
+		if (is_callable($callBack)) {
 			$callBack($content, $type);
 		} else {
 			if (!file_exists($saveFile = $this->saveDirPath($type))) {
