@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.3.7.2
- * @updatetime    2019-07-05 16:33:44
+ * @since         v2.3.8
+ * @updatetime    2019-08-19 16:21:29
  */
-define('IN_ZLS', '2.3.7.2');
+define('IN_ZLS', '2.3.8');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
@@ -425,12 +425,17 @@ class Z {
 				return $_trace;
 			}
 			$trace = debug_backtrace();
-			foreach ($trace as $t) {
-				if ('trace' == self::arrayGet($t, 'function')) {
-					$_trace->log($t, 'trace');
+			$traceData = [];
+			$len = count($trace) - 1;
+			for ($i = 1; $i <= $len; $i++) {
+				$t = $trace[$i];
+				if (!$t['function']) {
 					break;
 				}
+				$traceData[] = ['function' => Z::arrayGet($trace, ($i + 1) . '.function', ''), 'file' => $t['file'], 'line' => $t['line']];
 			}
+			$trace[0]['trace'] = &$traceData;
+			$_trace->log($trace[0], 'trace');
 			return true;
 		}
 		return false;
@@ -981,23 +986,26 @@ class Z {
 			} : function ($contents) {
 				return $contents;
 			};
+			$transform = function ($str) {
+				return '\\' . str_replace('_', '\\', $str);
+			};
 			if ($middleware && method_exists($controllerObject, 'before')) {
-				$middlewares[] = function ($request, Callable $next) use ($controllerObject, $after) {
-					$contents = $controllerObject->before($request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $request['class']);
-					return is_null($contents) ? $next($request) : $after($contents, $request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $request['class']);
+				$middlewares[] = function ($request, Callable $next) use ($controllerObject, $after, $transform) {
+					$contents = $controllerObject->before($request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $transform($request['class']));
+					return is_null($contents) ? $next($request) : $after($contents, $request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $transform($request['class']));
 				};
 			}
 			if (!method_exists($controllerObject, $methodFull)) {
 				$containCall = method_exists($controllerObject, 'call');
 				Z::throwIf(!$containCall, 404, 'Method' . ($requestMethod ? "({$requestMethod})" : '') . ' [ ' . $class . '->' . $methodFull . '() ] not found');
-				$middlewares[] = function ($request, Callable $next) use ($after, $controllerObject) {
-					$contents = $controllerObject->call($request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $request['class']);
-					return $after($contents, $request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $request['class']);
+				$middlewares[] = function ($request, Callable $next) use ($after, $controllerObject, $transform) {
+					$contents = $controllerObject->call($request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $transform($request['class']));
+					return $after($contents, $request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $transform($request['class']));
 				};
 			} elseif ($after) {
-				$middlewares[] = function ($request, Callable $next) use ($after) {
+				$middlewares[] = function ($request, Callable $next) use ($after, $transform) {
 					$contents = $next($request);
-					return $after($contents, $request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $request['class']);
+					return $after($contents, $request['method'], $request['controllerShort'], $request['args'], $request['methodFull'], $transform($request['class']));
 				};
 			}
 			$sendData = ['originalClass' => $originalClass, 'method' => $method, 'controllerShort' => $controllerShort, 'args' => $args, 'methodFull' => $methodFull, 'class' => $class];
@@ -2225,8 +2233,9 @@ class Zls {
 		if (!in_array($config->getRequest()->getPathInfo(), ['/favicon.ico'], true)) {
 			$exceptionLevel = $config->getExceptionLevel();
 			error_reporting(empty($exceptionLevel) ? E_ALL ^ E_DEPRECATED : $config->getExceptionLevel());
+			$loggerDispatcher = null;
 			if ($config->getExceptionControl()) {
-				Zls_Logger_Dispatcher::initialize();
+				$loggerDispatcher = Zls_Logger_Dispatcher::initialize();
 			}
 			try {
 				if (Z::isCli() && !Z::isSwoole()) {
@@ -2243,6 +2252,12 @@ class Zls {
 				}
 			} catch (Zls_Exception_Exit $e) {
 				echo $e->getMessage();
+			} catch (\Exception | \Throwable $e) {
+				if ($loggerDispatcher) {
+					$loggerDispatcher->handleException($e);
+				} else {
+					throw $e;
+				}
 			}
 			Z::eventEmit('ZLS_DEFER');
 		}
@@ -4451,9 +4466,9 @@ abstract class Zls_Database {
 }
 /**
  * Class Zls_Controller.
- * @method void before($method, $controllerShort, $args, $methodFull, $class)
- * @method string after($contents, $method, $controllerShort, $args, $methodFull, $class)
- * @method string call($method, $controllerShort, $args, $methodFull, $class)
+ * @method void before($method, $controller, $args, $methodFull, $class)
+ * @method string after($contents, $method, $controller, $args, $methodFull, $class)
+ * @method string call($method, $controller, $args, $methodFull, $class)
  */
 abstract class Zls_Controller {
 }
@@ -4631,8 +4646,8 @@ class Zls_Router_PathInfo extends Zls_Router {
 			$url = rtrim($url, '&');
 		}
 		if ($isPathinfo && $requestUri = Z::server('REQUEST_URI')) {
-			$requestUri = Z::tap(explode($config->getRequest()->getPathInfo() ?: '/', $requestUri), function ($v) {
-				return Z::arrayGet($v, 0);
+			$requestUri = Z::tap(explode($config->getRequest()->getPathInfo() ?: '/', $requestUri), function (&$v) {
+				$v = Z::arrayGet($v, 0);
 			});
 			$url = Z::strBeginsWith($url, $requestUri) ? $url : $requestUri . $url;
 		}
@@ -6271,8 +6286,8 @@ class Zls_Trace {
 		$debug = Z::debug(null, false, true, false);
 		$this->output(
 			vsprintf(
-				"traceType : %s\ntime : %s\nruntime : %s\nmemory : %s\npath : %s\nline : %u\nargs : \n%s\n\n",
-				['log', date('Y-m-d H:i:s'), $debug['runtime'] . 's', $debug['memory'], Z::safePath($data['file']), $data['line'], $arg]
+				"traceType : %s\ntime : %s\nruntime : %s\nmemory : %s\npath : %s\nline : %u\nargs : \n%s\ntrace : \n%s\n\n",
+				['log', date('Y-m-d H:i:s'), $debug['runtime'] . 's', $debug['memory'], Z::safePath($data['file']), $data['line'], $arg, var_export(Z::arrayGet($data, 'trace', []), true)]
 			),
 			$type
 		);
