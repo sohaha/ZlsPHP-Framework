@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.3.9
- * @updatetime    2019-08-29 17:01:13
+ * @since         v2.3.10
+ * @updatetime    2019-10-16 14:09:54
  */
-define('IN_ZLS', '2.3.9');
+define('IN_ZLS', '2.3.10');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
@@ -450,11 +450,7 @@ class Z {
 	 * @return bool|Zls_Trace
 	 */
 	public static function log($log = '', $type = 'log', $debug = false) {
-		if (!self::tap(self::config()->getTraceStatus(), function (&$state) use ($type) {
-			if (is_array($state)) {
-				$state = self::arrayGet($state, $type, true);
-			}
-		})) {
+		if (!self::config()->getTraceStatus($type)) {
 			return false;
 		}
 		$trace = new Zls_Trace();
@@ -1036,7 +1032,7 @@ class Z {
 	 * @param string $msg
 	 */
 	public static function end($msg = '') {
-		if (self::config()->runState) {
+		if (self::config()->runState && !ZLS_RUN_MODE_PLUGIN) {
 			throw new Zls_Exception_Exit($msg);
 		} else {
 			echo $msg;
@@ -4357,7 +4353,7 @@ abstract class Zls_Database {
 				$this->_displayError($e);
 			}
 		}
-		if ($this->_isMysql() && true == Z::config()->getTraceStatus()) {
+		if ($this->_isMysql() && $this->getTrace() && true == Z::config()->getTraceStatus('mysql')) {
 			if (preg_match('/SELECT /ims', $sql)) {
 				try {
 					$trace['runtime'] = (Z::microtime() - $startTime) . 'ms';
@@ -4366,9 +4362,7 @@ abstract class Zls_Database {
 					$sql = str_replace("\n", ' ', $sql);
 					$arr = $sth->execute($values) ? $sth->fetch(PDO::FETCH_ASSOC) : [];
 					$this->_traceRes = $trace + $arr + ['Values' => join(',', $values), 'SQL' => $sql];
-					if (true == $this->getTrace()) {
-						$this->trace();
-					}
+					$this->trace();
 				} catch (\Exception $e) {
 				}
 			}
@@ -5647,6 +5641,13 @@ class Zls_Config {
 	public function setDataCheckRules($dataCheckRules) {
 		$this->dataCheckRules = is_array($dataCheckRules) ? $dataCheckRules : Z::config($dataCheckRules, false);
 		return $this;
+	}
+	public function getTraceStatus($type = '') {
+		return Z::tap($this->traceStatus, function (&$state) use ($type) {
+			if (is_array($state)) {
+				$state = Z::arrayGet($state, $type, true);
+			}
+		});
 	}
 	/**
 	 * @param string $key
