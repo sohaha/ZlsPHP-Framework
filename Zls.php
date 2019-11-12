@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.3.10
- * @updatetime    2019-10-16 14:09:54
+ * @since         v2.4.0
+ * @updatetime    2019-11-12 18:40:49
  */
-define('IN_ZLS', '2.3.10');
+define('IN_ZLS', '2.4.0');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
@@ -61,6 +61,7 @@ interface Zls_Cache {
 class Z {
 	private static $dbInstances = [];
 	private static $globalData = [];
+	private static $KeyPrefix = 'GlobalData_';
 	/**
 	 * 返回文件夹路径 / 不存在则创建
 	 *
@@ -315,7 +316,7 @@ class Z {
 			$key = $keys;
 			$keys = null;
 		}
-		$_keys = $explode ? explode('.', $key) : [$key];
+		$_keys = $explode ? explode('.', (string) $key) : [$key];
 		$a = $arr;
 		while (0 != count($_keys)) {
 			$key = array_shift($_keys);
@@ -339,27 +340,24 @@ class Z {
 	public static function di($remove = false) {
 		static $di;
 		$uuid = self::swooleUuid();
-		$isset = isset($di[$uuid]);
-		if (is_null($remove)) {
-			return array_keys($di);
-		} elseif (!$remove) {
-			if (!$isset) {
-				$di[$uuid] = new Zls_Di();
-				if ($uuid !== '0') {
-					$di[$uuid]->merge($di['0']);
-				}
-			}
-			return $di[$uuid];
-		} elseif ($isset) {
-			$di[$uuid]->remove();
-			unset($di[$uuid]);
+		if ($di === null) {
+			$di = new Zls_Di();
 		}
-		return true;
+		if ($uuid === '0' || !class_exists('\Zls\Swoole\Context')) {
+			return $di;
+		}
+		$key = '_SwooleDi_';
+		if (!$newDi = \Zls\Swoole\Context::get($key, null)) {
+			$newDi = new Zls_Di();
+			$newDi->merge($di);
+			\Zls\Swoole\Context::set($key, $newDi);
+		}
+		return $newDi;
 	}
-	public static function swooleUuid($prefix = '') {
+	public static function swooleUuid($prefix = '', $haveToSwoole = false) {
 		if (self::isSwoole()) {
-			$uuid = self::swoole()->worker_id . '_' . \Swoole\Coroutine::getuid();
-		} elseif (self::Config()->getUseMyid()) {
+			$uuid = \Swoole\Coroutine::getuid();
+		} elseif (!$haveToSwoole && self::Config()->getUseMyid()) {
 			$uuid = getmypid();
 		} else {
 			$uuid = 0;
@@ -633,8 +631,6 @@ class Z {
 			self::cache()->reset();
 		}
 		self::clearDb();
-		self::di(true);
-		self::removeGlobalData();
 		Zls_Logger_Dispatcher::setMemReverse();
 	}
 	/**
@@ -1424,23 +1420,21 @@ class Z {
 		}
 		$_COOKIE[$key] = $value;
 	}
-	public static function getGlobalData($key) {
-		return self::arrayGet(self::$globalData, self::swooleUuid() . '.' . $key);
-	}
-	public static function removeGlobalData() {
-		unset(self::$globalData[self::swooleUuid()]);
+	public static function getGlobalData($key, $def = null) {
+		return self::swooleUuid('', true) ? \Zls\Swoole\Context::get(self::$KeyPrefix . $key, $def) : self::arrayGet(self::$globalData, self::$KeyPrefix . $key, $def, false);
 	}
 	public static function setGlobalData($key, $data = []) {
-		$id = self::swooleUuid();
-		if (!is_array($key)) {
-			$oldData = self::arrayGet(self::$globalData[$id], $key, []);
-			if (is_array($data) && is_array($oldData)) {
-				self::$globalData[$id][$key] = array_merge($oldData, $data);
-			} else {
-				self::$globalData[$id][$key] = $data;
+		$set = self::swooleUuid('', true) ? function ($key, $data) {
+			\Zls\Swoole\Context::set(self::$KeyPrefix . $key, $data);
+		} : function ($key, $data) {
+			self::$globalData[$key] = $data;
+		};
+		if (is_array($key)) {
+			foreach ($key as $k => $v) {
+				$set($k, $v);
 			}
 		} else {
-			self::$globalData[$id] = isset(self::$globalData[$id]) ? array_merge(self::$globalData[$id], $key) : $key;
+			$set($key, $data);
 		}
 	}
 	public static function header($content = '') {
@@ -1694,7 +1688,7 @@ class Z {
 	 */
 	public static function urlPath($subpath = null, $addSlash = false) {
 		self::throwIf(self::isCli() && !Z::isSwoole(), 500, 'urlPath() can not be used in cli mode');
-		$root = str_replace(['/', '\\'], '/', self::server('DOCUMENT_ROOT'));
+		$root = str_replace(['/', '\\'], '/', self::server('DOCUMENT_ROOT', ZLS_PATH));
 		chdir($root);
 		$root = getcwd();
 		$root = str_replace(['/', '\\'], '/', $root);
@@ -2015,12 +2009,9 @@ class Z {
 		if (self::strBeginsWith($name, 'is') && ($rName = strtoupper(substr($name, 2))) && in_array($rName, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'COPY', 'HEAD', 'OPTIONS', 'LINK', 'UNLINK', 'PURGE'])) {
 			return $rName === strtoupper(Z::server('REQUEST_METHOD', ''));
 		} elseif (self::strEndsWith($name, 'Get') && ($rName = substr($name, 0, -3))) {
-			$globalData = &self::$globalData[self::swooleUuid()];
-			if (isset($globalData[$rName])) {
-				$data = self::getGlobalData($rName);
-				$key = self::arrayGet($arguments, 0);
-				return $key ? self::arrayGet($data, $key) : $data;
-			}
+			$data = self::getGlobalData($rName);
+			$key = self::arrayGet($arguments, 0);
+			return $key ? self::arrayGet($data, $key) : $data;
 		}
 		$methods = self::config()->getZMethods();
 		self::throwIf(empty($methods[$name]), 500, $name . ' not found in ->setZMethods() or it is empty');
@@ -3373,6 +3364,15 @@ class Zls_Database_ActiveRecord extends Zls_Database {
 		$this->_sqlType = 'delete';
 		return $this;
 	}
+	public function getTable() {
+		return Z::arrayGet($this->arFrom, 0, '');
+	}
+	public function getWhere() {
+		return Z::arrayMap($this->arWhere, function ($v) {
+			list($where, $leftWrap, $rightWrap) = $v;
+			return [$where, $leftWrap, $rightWrap];
+		});
+	}
 	/**
 	 * 查询条件
 	 *
@@ -4180,7 +4180,6 @@ abstract class Zls_Database {
 	 * @param bool   $reconnection
 	 *
 	 * @return array|bool|int|Zls_Database_Resultset
-	 * @throws Zls_Exception_Database
 	 */
 	public function execute($sql = '', array $values = [], $reconnection = true) {
 		$cfg = Zls::getConfig();
@@ -5031,7 +5030,7 @@ class Zls_View {
 	}
 	public function add($key, $value = []) {
 		$ck = __CLASS__;
-		$old = Z::getGlobalData($ck);
+		$old = Z::getGlobalData($ck, []);
 		if (is_array($key)) {
 			foreach ($key as $k => $v) {
 				if (!Z::arrayKeyExists($k, $old)) {
@@ -5048,7 +5047,7 @@ class Zls_View {
 	}
 	public function set($key, $value = []) {
 		$ck = __CLASS__;
-		$old = Z::getGlobalData($ck);
+		$old = Z::getGlobalData($ck, []);
 		if (is_array($key)) {
 			foreach ($key as $k => $v) {
 				$old[$k] = $v;
