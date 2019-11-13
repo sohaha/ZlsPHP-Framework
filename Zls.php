@@ -5,12 +5,13 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.4.0
- * @updatetime    2019-11-12 18:40:49
+ * @since         v2.4.1
+ * @updatetime    2019-11-13 16:46:56
  */
-define('IN_ZLS', '2.4.0');
+define('IN_ZLS', '2.4.1');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
+defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
 defined('ZLS_RUN_MODE_CLI') || define('ZLS_RUN_MODE_CLI', true);
@@ -92,7 +93,7 @@ class Z {
 	 * 延迟执行
 	 */
 	public static function defer(Callable $fn) {
-		self::eventBind('ZLS_DEFER', $fn);
+		self::eventBind(ZLS_PREFIX . 'DEFER', $fn);
 	}
 	/**
 	 * 绑定事件
@@ -339,11 +340,12 @@ class Z {
 	 */
 	public static function di($remove = false) {
 		static $di;
-		$uuid = self::swooleUuid();
+		$cfg = Z::config();
+		$uuid = $cfg->getSwooleUuid();
 		if ($di === null) {
 			$di = new Zls_Di();
 		}
-		if ($uuid === '0' || !class_exists('\Zls\Swoole\Context')) {
+		if ($uuid === '0' || !$cfg->getHasSwooleContext()) {
 			return $di;
 		}
 		$key = '_SwooleDi_';
@@ -354,15 +356,8 @@ class Z {
 		}
 		return $newDi;
 	}
-	public static function swooleUuid($prefix = '', $haveToSwoole = false) {
-		if (self::isSwoole()) {
-			$uuid = \Swoole\Coroutine::getuid();
-		} elseif (!$haveToSwoole && self::Config()->getUseMyid()) {
-			$uuid = getmypid();
-		} else {
-			$uuid = 0;
-		}
-		return $prefix . $uuid;
+	public static function swooleUuid($prefix = '') {
+		return self::config()->getSwooleUuid($prefix);
 	}
 	public static function wasteTime($time = null) {
 		$wasteTime = 0;
@@ -571,7 +566,7 @@ class Z {
 	 * @return mixed
 	 */
 	public static function server($key = null, $default = null) {
-		$server = self::getGlobalData('server');
+		$server = self::getGlobalData(ZLS_PREFIX . 'server', []);
 		return is_null($key) ? $server : self::arrayGet($server, strtoupper($key), $default);
 	}
 	/**
@@ -1217,7 +1212,7 @@ class Z {
 		return $value;
 	}
 	public static function post($key = null, $default = null, $xssClean = true) {
-		$post = self::getGlobalData('post');
+		$post = self::getGlobalData(ZLS_PREFIX . 'post', []);
 		$value = is_null($key) ? $post : self::arrayGet($post, $key, $default);
 		return $xssClean ? self::xssClean($value) : $value;
 	}
@@ -1286,7 +1281,7 @@ class Z {
 		return $data;
 	}
 	public static function get($key = null, $default = null, $xssClean = true) {
-		$get = self::getGlobalData('get');
+		$get = self::getGlobalData(ZLS_PREFIX . 'get', []);
 		$value = is_null($key) ? $get : self::arrayGet($get, $key, $default);
 		return $xssClean ? self::xssClean($value) : $value;
 	}
@@ -1295,7 +1290,7 @@ class Z {
 	 */
 	public static function session($key = null, $default = null, $xssClean = false) {
 		$id = self::sessionStart();
-		$session = (self::isSwoole(true) && ($sessionHandle = self::config()->getSessionHandle())) ? $sessionHandle->swooleRead($id) : $_SESSION;
+		$session = (self::isSwoole(true) && ($sessionHandle = self::config()->getSessionHandle())) ? $sessionHandle->swooleRead($id) : self::getGlobalData(ZLS_PREFIX . 'session');
 		//$session = (self::isSwoole(true) && ($sessionHandle = self::config()->getSessionHandle())) ? $sessionHandle->swooleGet(null) : $_SESSION;
 		$value = is_null($key) ? (empty($session) ? [] : $session) : self::arrayGet($session, $key, $default);
 		return $xssClean ? self::xssClean($value) : $value;
@@ -1344,7 +1339,8 @@ class Z {
 		}
 	}
 	public static function cookieRaw($key = null, $default = null, $xssClean = false) {
-		$value = is_null($key) ? $_COOKIE : self::arrayGet($_COOKIE, $key, $default);
+		$cookie = self::getGlobalData(ZLS_PREFIX . 'cookie');
+		$value = is_null($key) ? $cookie : self::arrayGet($cookie, $key, $default);
 		return $xssClean ? self::xssClean($value) : $value;
 	}
 	/**
@@ -1395,71 +1391,58 @@ class Z {
 		return $defaultIp;
 	}
 	public static function setCookieRaw($key, $value, $life = null, $path = '/', $domian = null, $httpOnly = false) {
-		if (!self::isSwoole()) {
-			if (!self::isCli()) {
-				self::header('P3P: CP="CURa ADMa DEVa PSAo PSDo OUR BUS UNI PUR INT DEM STA PRE COM NAV OTC NOI DSP COR"');
-			}
-			if (!is_null($domian)) {
-				$autoDomain = $domian;
-			} else {
-				$host = explode(':', self::server('HTTP_HOST'));
-				$domian = $host[0];
-				$is_ip = preg_match('/^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/', $domian);
-				$notRegularDomain = preg_match('/^[^\\.]+$/', $domian);
-				if ($is_ip) {
-					$autoDomain = $domian;
-				} elseif ($notRegularDomain) {
-					$autoDomain = null;
-				} else {
-					$autoDomain = '.' . $domian;
-				}
-			}
-			setcookie($key, $value, ($life ? $life + time() : null), $path, $autoDomain, (443 == self::server('SERVER_PORT') ? 1 : 0), $httpOnly);
-		} else {
-			z::di()->makeShared(SWOOLE_RESPONSE)->cookie($key, $value, $life, $path, $domian, $httpOnly);
+		if (!self::isCli()) {
+			self::header('P3P: CP="CURa ADMa DEVa PSAo PSDo OUR BUS UNI PUR INT DEM STA PRE COM NAV OTC NOI DSP COR"');
 		}
-		$_COOKIE[$key] = $value;
+		if (!is_null($domian)) {
+			$autoDomain = $domian;
+		} else {
+			$host = explode(':', self::server('HTTP_HOST'));
+			$domian = $host[0];
+			$is_ip = preg_match('/^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/', $domian);
+			$notRegularDomain = preg_match('/^[^\\.]+$/', $domian);
+			if ($is_ip) {
+				$autoDomain = $domian;
+			} elseif ($notRegularDomain) {
+				$autoDomain = null;
+			} else {
+				$autoDomain = '.' . $domian;
+			}
+		}
+		self::setGlobalData(ZLS_PREFIX . 'setCookie', array_merge(self::getGlobalData(ZLS_PREFIX . 'setCookie', []), [[(string) $key, (string) $value, (int) ($life ? $life + time() : null), $path, $autoDomain, 443 == self::server('SERVER_PORT'), $httpOnly]]));
+		$cookie = Z::cookieRaw();
+		$cookie[$key] = $value;
+		Z::setGlobalData(ZLS_PREFIX . 'cookie', $cookie);
 	}
-	public static function getGlobalData($key, $def = null) {
-		return self::swooleUuid('', true) ? \Zls\Swoole\Context::get(self::$KeyPrefix . $key, $def) : self::arrayGet(self::$globalData, self::$KeyPrefix . $key, $def, false);
+	public static function getGlobalData($id, $def = null) {
+		return Z::config()->getHasSwooleContext() && Z::config()->getSwooleUuid() ? \Zls\Swoole\Context::get($id, $def) : Zls_Context_Default::get($id, $def);
 	}
-	public static function setGlobalData($key, $data = []) {
-		$set = self::swooleUuid('', true) ? function ($key, $data) {
-			\Zls\Swoole\Context::set(self::$KeyPrefix . $key, $data);
-		} : function ($key, $data) {
-			self::$globalData[$key] = $data;
-		};
-		if (is_array($key)) {
-			foreach ($key as $k => $v) {
-				$set($k, $v);
+	public static function setGlobalData($id, $data = null) {
+		$set = Z::config()->getHasSwooleContext() && Z::config()->getSwooleUuid() ? '\Zls\Swoole\Context' : 'Zls_Context_Default';
+		if (is_array($id)) {
+			$prefix = is_string($data) ? $data : '';
+			foreach ($id as $k => $v) {
+				$set::set($prefix . $k, $v);
 			}
 		} else {
-			$set($key, $data);
+			$set::set($id, $data);
 		}
 	}
 	public static function header($content = '') {
-		try {
-			if (self::isSwoole(true)) {
-				$header = explode(':', $content);
-				$k = array_shift($header);
-				$c = join(':', $header);
-				self::di()->makeShared(SWOOLE_RESPONSE)->header($k, trim($c));
-			} elseif (!self::isCli()) {
-				header($content);
-			}
-		} catch (\Exception $e) {
-		}
+		self::setGlobalData(ZLS_PREFIX . 'setHeader', array_merge(self::getGlobalData(ZLS_PREFIX . 'header', []), [$content]));
 	}
 	/**
 	 * 设置session配置
 	 */
 	public static function sessionSet($key = null, $value = null) {
 		$id = self::sessionStart();
+		$session = self::getGlobalData(ZLS_PREFIX . 'session');
 		if (is_array($key)) {
-			$_SESSION = array_merge($_SESSION, $key);
+			$session = array_merge($session, $key);
 		} else {
-			self::arraySet($_SESSION, $key, $value);
+			self::arraySet($session, $key, $value);
 		}
+		self::setGlobalData(ZLS_PREFIX . 'session', $session);
 		if (self::isSwoole(true) && ($sessionHandle = self::config()->getSessionHandle())) {
 			$sessionHandle->swooleWrite($id, $_SESSION);
 		}
@@ -1891,7 +1874,7 @@ class Z {
 		};
 		if (is_array($group)) {
 			$groupString = json_encode($group);
-			$key = self::swooleUuid(md5($groupString));
+			$key = Z::config()->getSwooleUuid(md5($groupString));
 			if (!self::arrayKeyExists($key, self::$dbInstances) || $isNewInstance) {
 				$group['group'] = $groupString;
 				self::$dbInstances[$key] = $getDb($group);
@@ -1902,7 +1885,7 @@ class Z {
 			if (empty($group)) {
 				$group = $config['default_group'];
 			}
-			$key = self::swooleUuid($group);
+			$key = Z::config()->getSwooleUuid($group);
 			if (!self::arrayKeyExists($key, self::$dbInstances) || $isNewInstance) {
 				$config = self::config()->getDatabaseConfig($group);
 				Z::throwIf(empty($config), 'Database', 'unknown database config group [ ' . $group . ' ]');
@@ -2009,7 +1992,7 @@ class Z {
 		if (self::strBeginsWith($name, 'is') && ($rName = strtoupper(substr($name, 2))) && in_array($rName, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'COPY', 'HEAD', 'OPTIONS', 'LINK', 'UNLINK', 'PURGE'])) {
 			return $rName === strtoupper(Z::server('REQUEST_METHOD', ''));
 		} elseif (self::strEndsWith($name, 'Get') && ($rName = substr($name, 0, -3))) {
-			$data = self::getGlobalData($rName);
+			$data = self::getGlobalData(ZLS_PREFIX . $rName);
 			$key = self::arrayGet($arguments, 0);
 			return $key ? self::arrayGet($data, $key) : $data;
 		}
@@ -2192,11 +2175,6 @@ class Zls {
 			spl_autoload_register('__autoload');
 		}
 		spl_autoload_register(['Zls', 'classAutoloader']);
-		if (get_magic_quotes_gpc()) {
-			$_GET = Z::stripSlashes($_GET);
-			$_POST = Z::stripSlashes($_POST);
-			$_COOKIE = Z::stripSlashes($_COOKIE);
-		}
 		Z::setGlobalData([
 			'server' => $_SERVER,
 			'get' => $_GET,
@@ -2204,11 +2182,12 @@ class Zls {
 			'files' => isset($_FILES) ? $_FILES : [],
 			'cookie' => isset($_COOKIE) ? $_COOKIE : [],
 			'session' => isset($_SESSION) ? $_SESSION : [],
-		]);
+		], ZLS_PREFIX);
 		$config->setAppDir(ZLS_APP_PATH);
 		$config->addPackage(ZLS_APP_PATH);
 		$config->composer();
 		$config->runState = false;
+		$config->hasSwooleContext = class_exists('\Zls\Swoole\Context');
 		return $config;
 	}
 	/**
@@ -2229,8 +2208,10 @@ class Zls {
 					//todo 去掉is
 					self::runCli();
 				} elseif (Z::isPluginMode()) {
+					self::runSetData();
 					self::runPlugin();
 				} else {
+					self::runSetData();
 					self::initSession();
 					self::getConfig()->bootstrap();
 					echo self::resultException(function () {
@@ -2251,9 +2232,21 @@ class Zls {
 					throw $isException;
 				}
 			}
-			Z::eventEmit('ZLS_DEFER');
+			Z::eventEmit(ZLS_PREFIX . 'DEFER');
 		}
 		return true;
+	}
+	public static function runSetData() {
+		Z::defer(function () {
+			$hs = Z::getGlobalData(ZLS_PREFIX . 'setHeader', []);
+			foreach ($hs as $c) {
+				header($c);
+			}
+			$cs = Z::getGlobalData(ZLS_PREFIX . 'setCookie', []);
+			foreach ($cs as $c) {
+				setcookie(...$c);
+			}
+		});
 	}
 	public static function resultException(Callable $fn) {
 		$exception = null;
@@ -2365,7 +2358,7 @@ class Zls {
 		@ini_set('session.hash_function', 1);
 		@ini_set('session.hash_bits_per_character', 5);
 		session_cache_limiter('nocache');
-		session_set_cookie_params($sessionConfig['lifetime'], $sessionConfig['cookie_path'], preg_match('/^[^\\.]+$/', Z::server('HTTP_HOST')) ? null : $sessionConfig['cookie_domain']);
+		session_set_cookie_params($sessionConfig['lifetime'], $sessionConfig['cookie_path'], preg_match('/^[^.]+$/', Z::server('HTTP_HOST')) ? '' : $sessionConfig['cookie_domain']);
 		if (!empty($sessionConfig['session_save_path'])) {
 			session_save_path($sessionConfig['session_save_path']);
 		}
@@ -4985,32 +4978,34 @@ class Zls_Exception_Database extends Zls_Exception {
 	}
 }
 class Zls_Request_Default implements Zls_Request {
-	private $pathInfo;
-	private $queryString;
 	public function __construct() {
-		if (!$this->pathInfo = Z::server('PATH_INFO', Z::server('REDIRECT_PATH_INFO'))) {
+		if (!$pathInfo = Z::server('PATH_INFO', Z::server('REDIRECT_PATH_INFO'))) {
 			if ($requestUri = Z::server('REQUEST_URI', '')) {
 				$REQUEST_URI = Z::server('REQUEST_URI', '');
 				if (Z::strBeginsWith($REQUEST_URI, '//')) {
 					$REQUEST_URI = ltrim($REQUEST_URI, '/');
 				}
-				$this->pathInfo = parse_url($REQUEST_URI, PHP_URL_PATH);
+				$pathInfo = parse_url($REQUEST_URI, PHP_URL_PATH);
 			}
 		}
-		$this->queryString = Z::server('QUERY_STRING', '');
+		$queryString = Z::server('QUERY_STRING', '');
+		Z::setGlobalData([
+			'pathInfo' => $pathInfo,
+			'queryString' => $queryString,
+		], ZLS_PREFIX);
 	}
 	public function getPathInfo() {
-		return $this->pathInfo;
+		return Z::getGlobalData(ZLS_PREFIX . 'pathInfo');
 	}
 	public function setPathInfo($pathInfo) {
-		$this->pathInfo = $pathInfo;
+		Z::setGlobalData(ZLS_PREFIX . 'pathInfo', $pathInfo);
 		return $this;
 	}
 	public function getQueryString() {
-		return $this->queryString;
+		return Z::getGlobalData(ZLS_PREFIX . 'queryString');
 	}
 	public function setQueryString($queryString) {
-		$this->queryString = $queryString;
+		Z::setGlobalData(ZLS_PREFIX . 'queryString', $queryString);
 		return $this;
 	}
 }
@@ -5360,6 +5355,7 @@ class Zls_SeparationRouter extends Zls_Route {
  */
 class Zls_Config {
 	private static $alias = [];
+	private $context;
 	private $appDir = '';
 	private $primaryAppDir = '';
 	private $indexDir = '';
@@ -5429,6 +5425,7 @@ class Zls_Config {
 		'source' => ['HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP', 'REMOTE_ADDR'],
 		'check' => ['HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP'],
 	];
+	private $hasSwooleContext;
 	/**
 	 * @return array
 	 */
@@ -5950,6 +5947,29 @@ class Zls_Config {
 		}
 		return $router->find(str_replace('Controller_', '', $controller), $hmvcModule);
 	}
+	public function getSwooleUuid($prefix = '') {
+		if (Z::isSwoole()) {
+			$uuid = \Swoole\Coroutine::getuid();
+			// } elseif (!$haveToSwoole && $this->getUseMyid()) {
+			//     $uuid = getmypid();
+		} else {
+			$uuid = 0;
+		}
+		return $prefix . $uuid;
+	}
+}
+class Zls_Context_Default {
+	private static $context = [];
+	public static function set($id, $value) {
+		self::$context[$id] = $value;
+		return $value;
+	}
+	public static function get($id, $def = null) {
+		return Z::arrayGet(self::$context, $id, $def, false);
+	}
+	public static function has($id) {
+		return Z::arrayKeyExists($id, self::$context, false);
+	}
 }
 class Zls_Logger_Dispatcher {
 	private static $instance;
@@ -5972,7 +5992,7 @@ class Zls_Logger_Dispatcher {
 	 * @param Zls_Exception $exception
 	 */
 	final public function handleException($exception) {
-		Z::throwIf(z::swooleUuid() != z::server("ZLS_SWOOLE_UUID", '0'), $exception);
+		Z::throwIf(Z::config()->getSwooleUuid() != '0', $exception);
 		if (is_subclass_of($exception, 'Zls_Exception')) {
 			Zls_Logger_Dispatcher::dispatch($exception);
 		} else {
@@ -6028,7 +6048,7 @@ class Zls_Logger_Dispatcher {
 		if (0 !== error_reporting()) {
 			$throw = in_array($code, [E_WARNING], true);
 			$exception = new \Zls_Exception_500($message, $code, 'General Error', $file, $line);
-			Z::throwIf($throw || z::swooleUuid() != z::server("ZLS_SWOOLE_UUID", '0'), $exception, $message, $code);
+			Z::throwIf($throw || Z::config()->getSwooleUuid() != '0', $exception, $message, $code);
 			Zls_Logger_Dispatcher::dispatch($exception);
 		}
 		return;
@@ -6044,7 +6064,7 @@ class Zls_Logger_Dispatcher {
 		}
 		self::$memReverse = null;
 		$exception = new Zls_Exception_500($lastError['message'], $lastError['type'], 'Fatal Error', $lastError['file'], $lastError['line']);
-		Z::throwIf(z::swooleUuid() != z::server("ZLS_SWOOLE_UUID", '0'), $exception);
+		Z::throwIf(Z::config()->getSwooleUuid() != '0', $exception);
 		$error = Zls_Logger_Dispatcher::dispatch($exception, true);
 		if (Z::isSwoole(true)) {
 			$response = Z::di()->makeShared(SWOOLE_RESPONSE);
@@ -6053,7 +6073,7 @@ class Zls_Logger_Dispatcher {
 		} else {
 			echo $error;
 		}
-		Z::eventEmit('ZLS_DEFER');
+		Z::eventEmit(ZLS_PREFIX . 'DEFER');
 	}
 }
 class Zls_Maintain_Handle_Default implements Zls_Maintain_Handle {
