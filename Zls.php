@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.4.4
- * @updatetime    2019-12-18 15:00:18
+ * @since         v2.4.5
+ * @updatetime    2019-12-24 17:12:41
  */
-define('IN_ZLS', '2.4.4');
+define('IN_ZLS', '2.4.5');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
@@ -366,6 +366,7 @@ class Z
     {
         static $di;
         $cfg  = Z::config();
+        $uuid = $cfg->getSwooleUuid();
         $uuid = $cfg->getSwooleUuid();
         if ($di === null) {
             $di = new Zls_Di();
@@ -1121,22 +1122,18 @@ class Z
      *
      * @return Zls_Bean
      */
-    public static function bean($beanName, $row = [], $shared = true, $args = [])
+    public static function bean($beanName, $row = [], $shared = true)
     {
         if ('object' === gettype($beanName)) {
             $object = $beanName;
             $name   = get_class($beanName);
         } else {
             $name   = Zls::getConfig()->getBeanDirName() . '/' . $beanName;
-            $object = self::factory($name, $shared, null, $args);
+            $object = self::factory($name, $shared, null, []);
+            $object->init($row);
         }
         self::throwIf(!($object instanceof Zls_Bean), 500, '[ ' . $name . ' ] not a valid Zls_Bean', 'ERROR');
-        return self::tap($object, function ($object) use ($row) {
-            foreach ($row as $key => $value) {
-                $method = 'set' . Z::strSnake2Camel($key);
-                $object->{$method}($value);
-            }
-        });
+        return $object;
     }
     /**
      * 将特定字符串转化为按驼峰式
@@ -3944,13 +3941,33 @@ abstract class Zls_Middleware
 abstract class Zls_Bean
 {
     protected static $noTransform = false;
+    public function __construct($row = null)
+    {
+        $this->init($row ?: []);
+    }
+    final public function init(array $row)
+    {
+        foreach ($row as $key => $value) {
+            $method = 'set' . Z::strSnake2Camel($key);
+            $this->{$method}($value);
+        }
+    }
+    public function __invoke(...$key)
+    {
+        return $this->toArray($key);
+    }
     final public function toArray($fields = [])
     {
-        $args    = get_object_vars($this);
+        $filter  = function ($key) use ($fields) {
+            return !$fields || (is_array($fields) && in_array($key, $fields));
+        };
+        $args    = Z::arrayFilter($fields !== false ? get_object_vars($this) : [], function ($v, $k) use ($filter) {
+            return $filter($k);
+        });
         $methods = array_diff(get_class_methods($this), get_class_methods(__CLASS__));
         foreach ($methods as $method) {
             $key = static::_get($method);
-            if ((bool)$fields && is_array($fields) && !in_array($key, $fields)) {
+            if (!$key || !$filter($key)) {
                 continue;
             }
             $args[$key] = $this->$method();
@@ -3959,23 +3976,27 @@ abstract class Zls_Bean
     }
     private static function _get($method)
     {
+        if (!Z::strBeginsWith($method, 'get')) {
+            return null;
+        }
         $method = str_replace('get', '', $method);
         return static::$noTransform ? $method : lcfirst(Z::strCamel2Snake(str_replace('get', '', $method)));
     }
     public function __call($method, $args)
     {
-        if (z::strBeginsWith($method, 'set')) {
-            $method = static::_set($method);
+        if (Z::strBeginsWith($method, 'set') && $method = static::_set($method)) {
             return $this->$method = z::arrayGet($args, 0);
-        } elseif (z::strBeginsWith($method, 'get')) {
-            $method = static::_get($method);
+        } elseif (Z::strBeginsWith($method, 'get') && $method = static::_get($method)) {
             return $this->$method;
         }
-        Z::throwIf(true, 500, 'Call to undefined method ' . get_called_class() . '::' . $method . '()');
+        Z::throwIf(true, 500, 'Call to undefined method ' . get_called_class() . '->' . $method . '()');
         return false;
     }
     private static function _set($method)
     {
+        if (!Z::strBeginsWith($method, 'set')) {
+            return null;
+        }
         $method = str_replace('set', '', $method);
         return static::$noTransform ? $method : lcfirst(Z::strCamel2Snake($method));
     }
