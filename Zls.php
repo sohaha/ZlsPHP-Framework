@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.5.0
- * @updatetime    2020-01-13 18:31:56
+ * @since         v2.5.1
+ * @updatetime    2020-01-18 15:52:31
  */
-define('IN_ZLS', '2.5.0');
+define('IN_ZLS', '2.5.1');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
@@ -5186,7 +5186,7 @@ class Zls_View {
 	 */
 	public function loadRaw($path, $data = [], $return = false) {
 		Z::throwIf(!file_exists($path), 500, 'view file : [ ' . $path . ' ] not found', 'ERROR');
-		$data = array_merge(Cfg::get(__CLASS__, []), $data);
+		$data = array_merge(Z::getGlobalData(__CLASS__, []), $data);
 		if (!empty($data)) {
 			extract($data);
 		}
