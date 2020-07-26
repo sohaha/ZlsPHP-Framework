@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.5.1
- * @updatetime    2020-01-18 15:52:31
+ * @since         v2.5.2
+ * @updatetime    2020-07-26 19:09:46
  */
-define('IN_ZLS', '2.5.1');
+define('IN_ZLS', '2.5.2');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
@@ -1071,7 +1071,7 @@ class Z {
 	 * @param string $msg
 	 */
 	public static function end($msg = '') {
-		if (self::config()->runState && !ZLS_RUN_MODE_PLUGIN) {
+		if (self::config()->runState && !ZLS_RUN_MODE_PLUGIN && !self::isCli()) {
 			throw new Zls_Exception_Exit($msg);
 		} else {
 			echo $msg;
