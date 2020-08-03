@@ -3,12 +3,12 @@
  * Zls
  * @author        影浅
  * @email         seekwe@gmail.com
- * @copyright     Copyright (c) 2015 - 2018, 影浅, Inc.
+ * @copyright     Copyright (c) 2015 - 2020, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.5.2
- * @updatetime    2020-07-26 19:09:46
+ * @since         v2.5.3
+ * @updatetime    2020-08-03 12:03:47
  */
-define('IN_ZLS', '2.5.2');
+define('IN_ZLS', '2.5.3');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
@@ -99,11 +99,11 @@ class Z {
 	/**
 	 * 返回文件夹路径 / 不存在则创建
 	 *
-	 * @param string $path     文件夹路径
-	 * @param bool   $addSlash 是否追加/
-	 * @param bool   $isFile   是否是文件路径
-	 * @param bool   $entr
-	 * @param bool   $safeMode
+	 * @param string $path 文件夹路径
+	 * @param bool $addSlash 是否追加/
+	 * @param bool $isFile 是否是文件路径
+	 * @param bool $entr
+	 * @param bool $safeMode
 	 *
 	 * @return string
 	 */
@@ -170,7 +170,7 @@ class Z {
 	 * 简化临时变量
 	 *
 	 * @param string|array $value
-	 * @param Callable     $callback
+	 * @param Callable $callback
 	 *
 	 * @return string|object|array
 	 */
@@ -480,7 +480,7 @@ class Z {
 	 *
 	 * @param string $log
 	 * @param string $type
-	 * @param bool   $debug
+	 * @param bool $debug
 	 *
 	 * @return bool|Zls_Trace
 	 */
@@ -504,10 +504,10 @@ class Z {
 	 * 获取执行时间与内存
 	 *
 	 * @param string $name
-	 * @param bool   $output
-	 * @param bool   $suffix
-	 * @param bool   $resString
-	 * @param bool   $unset
+	 * @param bool $output
+	 * @param bool $suffix
+	 * @param bool $resString
+	 * @param bool $unset
 	 *
 	 * @return array|string
 	 * @internal param bool $end
@@ -577,7 +577,7 @@ class Z {
 	 *
 	 * @param string $path
 	 * @param string $prefix
-	 * @param bool   $entr 是否基于入口路径
+	 * @param bool $entr 是否基于入口路径
 	 *
 	 * @return string
 	 */
@@ -632,7 +632,7 @@ class Z {
 	/**
 	 * 数组过滤
 	 *
-	 * @param array    $arr
+	 * @param array $arr
 	 * @param callable $callback
 	 *
 	 * @return array
@@ -699,9 +699,9 @@ class Z {
 	 *
 	 * @param              $taksName
 	 * @param array|string $args
-	 * @param string|null  $user
-	 * @param string|null  $phpPath
-	 * @param bool         $logFile
+	 * @param string|null $user
+	 * @param string|null $phpPath
+	 * @param bool $logFile
 	 *
 	 * @return string
 	 */
@@ -765,9 +765,9 @@ class Z {
 	 * 执行外部命令
 	 *
 	 * @param             $cmd
-	 * @param string      $user
+	 * @param string $user
 	 * @param bool|string $logfile true直接输出,false不输出,或指定输入日志路径
-	 * @param bool        $escape
+	 * @param bool $escape
 	 *
 	 * @return string
 	 */
@@ -833,7 +833,7 @@ class Z {
 	 * 扫描目录文件
 	 *
 	 * @param               $dir
-	 * @param int           $depth
+	 * @param int $depth
 	 * @param null|Callable $fn
 	 *
 	 * @return array
@@ -877,7 +877,7 @@ class Z {
 	 * 实例业务层
 	 *
 	 * @param       $businessName
-	 * @param bool  $shared
+	 * @param bool $shared
 	 * @param array $args
 	 *
 	 * @return object
@@ -891,10 +891,10 @@ class Z {
 	/**
 	 * 超级方法
 	 *
-	 * @param string $className      可以是完整的控制器类名，模型类名，类库类名
+	 * @param string $className 可以是完整的控制器类名，模型类名，类库类名
 	 * @param string $hmvcModuleName hmvc模块名称，是配置里面的数组的键名，插件模式下才会用到这个参数
-	 * @param bool   $shared
-	 * @param array  $args
+	 * @param bool $shared
+	 * @param array $args
 	 *
 	 * @return object
 	 */
@@ -931,7 +931,7 @@ class Z {
 	 * 逗号字符串
 	 *
 	 * @param        $str
-	 * @param array  $intersect
+	 * @param array $intersect
 	 * @param string $delimiter
 	 *
 	 * @return array
@@ -976,11 +976,11 @@ class Z {
 	 * 实例控制器
 	 *
 	 * @param string|object $controller
-	 * @param null          $method
-	 * @param array         $args
-	 * @param null          $hmvcModuleName
-	 * @param bool          $middleware
-	 * @param bool          $requestMethod
+	 * @param null $method
+	 * @param array $args
+	 * @param null $hmvcModuleName
+	 * @param bool $middleware
+	 * @param bool $requestMethod
 	 *
 	 * @return object|string
 	 */
@@ -1012,14 +1012,16 @@ class Z {
 					$methodFull = $requestMethodFull;
 				}
 			}
-			$after = $middleware && method_exists($controllerObject, 'after') ? function ($contents, $method, $controllerShort, $args, $methodFull, $class) use ($controllerObject) {
-				$contents = $controllerObject->after($contents, $method, $controllerShort, $args, $methodFull, $class);
+			$view = function ($contents) use ($controllerShort, $method) {
 				if (is_array($contents)) {
 					$contents = Z::view()->set($contents)->load("$controllerShort/$method", [], true);
 				}
 				return $contents;
-			} : function ($contents) {
-				return $contents;
+			};
+			$after = $middleware && method_exists($controllerObject, 'after') ? function ($contents, $method, $controllerShort, $args, $methodFull, $class) use ($controllerObject, $view) {
+				return $view($controllerObject->after($contents, $method, $controllerShort, $args, $methodFull, $class));
+			} : function ($contents) use ($view) {
+				return $view($contents);
 			};
 			$transform = function ($str) {
 				return '\\' . str_replace('_', '\\', $str);
@@ -1086,7 +1088,7 @@ class Z {
 	}
 	/**
 	 * @param       $daoName
-	 * @param bool  $shared
+	 * @param bool $shared
 	 * @param array $args
 	 *
 	 * @return Zls_Dao
@@ -1100,7 +1102,7 @@ class Z {
 	/**
 	 * @param       $beanName
 	 * @param       $row
-	 * @param bool  $shared
+	 * @param bool $shared
 	 * @param array $args
 	 *
 	 * @return Zls_Bean
@@ -1122,7 +1124,7 @@ class Z {
 	 *
 	 * @param        $str
 	 * @param string $Delimiter 分隔符
-	 * @param bool   $ucfirst
+	 * @param bool $ucfirst
 	 *
 	 * @return mixed|string
 	 */
@@ -1135,7 +1137,7 @@ class Z {
 	 * 模型
 	 *
 	 * @param       $modelName
-	 * @param bool  $shared
+	 * @param bool $shared
 	 * @param array $args
 	 *
 	 * @return object
@@ -1148,7 +1150,7 @@ class Z {
 	}
 	/**
 	 * @param       $lName
-	 * @param bool  $shared
+	 * @param bool $shared
 	 * @param array $args
 	 *
 	 * @return object
@@ -1613,9 +1615,9 @@ class Z {
 	/**
 	 * 遍历数组并传递每个值给给定回调
 	 *
-	 * @param array    $arr
+	 * @param array $arr
 	 * @param Callable $closure
-	 * @param bool     $keepKey 保持key值
+	 * @param bool $keepKey 保持key值
 	 *
 	 * @return array
 	 */
@@ -1630,8 +1632,8 @@ class Z {
 	 *
 	 * @param          $key
 	 * @param Callable $closure
-	 * @param int      $time
-	 * @param null     $cacheType
+	 * @param int $time
+	 * @param null $cacheType
 	 *
 	 * @return mixed
 	 */
@@ -1648,8 +1650,8 @@ class Z {
 	/**
 	 * 删除文件夹和子文件夹
 	 *
-	 * @param string $dirPath     文件夹路径
-	 * @param bool   $includeSelf 是否删除最父层文件夹
+	 * @param string $dirPath 文件夹路径
+	 * @param bool $includeSelf 是否删除最父层文件夹
 	 *
 	 * @return bool
 	 */
@@ -1678,9 +1680,9 @@ class Z {
 	/**
 	 * 生成控制器方法的url
 	 *
-	 * @param string $url     控制器方法
-	 * @param array  $getData get传递的参数数组，键值对，键是参数名，值是参数值
-	 * @param array  $opt     subfix是否自动添加当前的路由后缀,isHmvc是否自动添加hmvc模块名
+	 * @param string $url 控制器方法
+	 * @param array $getData get传递的参数数组，键值对，键是参数名，值是参数值
+	 * @param array $opt subfix是否自动添加当前的路由后缀,isHmvc是否自动添加hmvc模块名
 	 *
 	 * @return string
 	 */
@@ -1706,7 +1708,7 @@ class Z {
 	 * 只能在web访问时使用，在命令行下面会抛出异常。
 	 *
 	 * @param null|string $subpath 子路径或者文件路径，如果非空就会被附加在入口文件所在目录的后面
-	 * @param bool        $addSlash
+	 * @param bool $addSlash
 	 *
 	 * @return string
 	 */
@@ -1761,8 +1763,8 @@ class Z {
 	 * 获取数据
 	 *
 	 * @param array|null $map 字段映射数组,格式：['表单name名称'=>'表字段名称',...]
-	 * @param null       $sourceData
-	 * @param bool       $replenish
+	 * @param null $sourceData
+	 * @param bool $replenish
 	 *
 	 * @return array []
 	 */
@@ -1796,9 +1798,9 @@ class Z {
 	/**
 	 * 数据验证
 	 *
-	 * @param string       $value
+	 * @param string $value
 	 * @param array|string $rule 如果字符串多个用|分隔
-	 * @param null         $db
+	 * @param null $db
 	 *
 	 * @return mixed
 	 */
@@ -1826,12 +1828,12 @@ class Z {
 	/**
 	 * 数据验证
 	 *
-	 * @param array   $data         需要检验的数据
-	 * @param array   $rules        验证规则
-	 * @param array  &$returnData   验证通过后，处理过的数据
+	 * @param array $data 需要检验的数据
+	 * @param array $rules 验证规则
+	 * @param array  &$returnData 验证通过后，处理过的数据
 	 * @param string &$errorMessage 验证失败时的错误信息
-	 * @param string &$errorKey     验证失败的时候验证失败的那个key字段名称
-	 * @param object &$db           数据库连接对象
+	 * @param string &$errorKey 验证失败的时候验证失败的那个key字段名称
+	 * @param object &$db 数据库连接对象
 	 *
 	 * @return mixed
 	 * @throws
@@ -1904,8 +1906,8 @@ class Z {
 	 * 获取数据库操作对象
 	 * @staticvar array $instances   数据库单例容器
 	 *
-	 * @param string|array $group         配置组名称
-	 * @param bool         $isNewInstance 是否刷新单例
+	 * @param string|array $group 配置组名称
+	 * @param bool $isNewInstance 是否刷新单例
 	 *
 	 * @return \Zls_Database_ActiveRecord
 	 */
@@ -1950,11 +1952,11 @@ class Z {
 	/**
 	 * 分页方法
 	 *
-	 * @param int    $total    一共多少记录
-	 * @param int    $page     当前是第几页
-	 * @param int    $pagesize 每页多少
-	 * @param string $url      url是什么，url里面的{page}会被替换成页码
-	 * @param int    $a_count  分页条中页码链接的总数量,不包含当前页
+	 * @param int $total 一共多少记录
+	 * @param int $page 当前是第几页
+	 * @param int $pagesize 每页多少
+	 * @param string $url url是什么，url里面的{page}会被替换成页码
+	 * @param int $a_count 分页条中页码链接的总数量,不包含当前页
 	 *
 	 * @return array $result
 	 */
@@ -2368,7 +2370,7 @@ class Zls {
 	 * 检测并加载hmvc模块,成功返回模块文件夹名称，失败返回false或抛出异常
 	 *
 	 * @param string $hmvcModuleName hmvc模块在URI中的名称，即注册配置hmvc模块数组的键名称
-	 * @param bool   $throwException
+	 * @param bool $throwException
 	 *
 	 * @return bool
 	 */
@@ -2957,8 +2959,8 @@ class Zls_Database_ActiveRecord extends Zls_Database {
 	 * 查询表
 	 *
 	 * @param string|array|Callable $from
-	 * @param string                $as 别名
-	 * @param bool                  $wrap
+	 * @param string $as 别名
+	 * @param bool $wrap
 	 *
 	 * @return $this
 	 */
@@ -3485,9 +3487,9 @@ class Zls_Database_ActiveRecord extends Zls_Database {
 	/**
 	 * 批量更新
 	 *
-	 * @param string $table  表名
-	 * @param array  $values 必须包含$index字段
-	 * @param string $index  唯一字段名称，一般是主键id
+	 * @param string $table 表名
+	 * @param array $values 必须包含$index字段
+	 * @param string $index 唯一字段名称，一般是主键id
 	 *
 	 * @return object|int
 	 */
@@ -4252,9 +4254,9 @@ abstract class Zls_Database {
 	/**
 	 * 执行一个sql语句，写入型的返回bool或者影响的行数（insert,delete,replace,update），搜索型的返回结果集
 	 *
-	 * @param string $sql    sql语句
-	 * @param array  $values 参数
-	 * @param bool   $reconnection
+	 * @param string $sql sql语句
+	 * @param array $values 参数
+	 * @param bool $reconnection
 	 *
 	 * @return array|bool|int|Zls_Database_Resultset
 	 */
@@ -5142,8 +5144,8 @@ class Zls_View {
 	 * 加载一个视图
 	 *
 	 * @param string $viewName 视图名称
-	 * @param array  $data     视图中可以使用的数据
-	 * @param bool   $return   是否返回视图内容
+	 * @param array $data 视图中可以使用的数据
+	 * @param bool $return 是否返回视图内容
 	 *
 	 * @return string
 	 */
@@ -5180,7 +5182,7 @@ class Zls_View {
 	/**
 	 * @param       $path
 	 * @param array $data
-	 * @param bool  $return
+	 * @param bool $return
 	 *
 	 * @return string
 	 */
@@ -5204,8 +5206,8 @@ class Zls_View {
 	 * 加载主项目的视图
 	 *
 	 * @param string $viewName 主项目视图名称
-	 * @param array  $data     视图中可以使用的数据
-	 * @param bool   $return   是否返回视图内容
+	 * @param array $data 视图中可以使用的数据
+	 * @param bool $return 是否返回视图内容
 	 *
 	 * @return string
 	 */
@@ -6096,7 +6098,7 @@ class Zls_Logger_Dispatcher {
 	 * 异常
 	 *
 	 * @param Zls_Exception $exception
-	 * @param bool          $result
+	 * @param bool $result
 	 *
 	 * @return string
 	 */
