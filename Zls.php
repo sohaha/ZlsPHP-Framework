@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2020, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.5.3
- * @updatetime    2020-08-03 12:03:47
+ * @since         v2.5.4
+ * @updatetime    2020-08-20 14:20:11
  */
-define('IN_ZLS', '2.5.3');
+define('IN_ZLS', '2.5.4');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
@@ -1333,6 +1333,10 @@ class Z {
 	}
 	/**
 	 * 获取session值
+	 * @param null $key
+	 * @param null $default
+	 * @param bool $xssClean
+	 * @return array|mixed|string|string[]|null
 	 */
 	public static function session($key = null, $default = null, $xssClean = false) {
 		$id = self::sessionStart();
@@ -1345,13 +1349,14 @@ class Z {
 	 * 开启session
 	 *
 	 * @param string $id 自定义session_id
+	 * @return array|mixed|string|string[]
 	 */
 	public static function sessionStart($id = null) {
 		if (!!$id || !self::di()->has('ZlsSessionID')) {
 			$sessionId = '';
 			if (!self::isCli()) {
 				if (self::phpCanV()) {
-					$started = PHP_SESSION_ACTIVE === session_status() ? true : false;
+					$started = PHP_SESSION_ACTIVE === session_status();
 				} else {
 					$started = '' === session_id() ? false : true;
 				}
@@ -1360,6 +1365,10 @@ class Z {
 						session_id($id);
 					}
 					session_start();
+				}
+				if (!Cfg::get("sessionInitState")) {
+					Cfg::add('session', isset($_SESSION) ? $_SESSION : []);
+					Cfg::add("sessionInitState", true);
 				}
 				$sessionId = session_id();
 			} elseif (self::isSwoole(true)) {
@@ -1455,7 +1464,8 @@ class Z {
 				$autoDomain = '.' . $domian;
 			}
 		}
-		self::setGlobalData(ZLS_PREFIX . 'setCookie', array_merge(self::getGlobalData(ZLS_PREFIX . 'setCookie', []), [[(string) $key, (string) $value, (int) ($life ? $life + time() : null), $path, $autoDomain, 443 == self::server('SERVER_PORT'), $httpOnly]]));
+		$data = array_merge(self::getGlobalData(ZLS_PREFIX . 'setCookie', []), [[(string) $key, (string) $value, (int) ($life ? $life + time() : null), $path, $autoDomain, 443 == self::server('SERVER_PORT'), $httpOnly]]);
+		self::setGlobalData(ZLS_PREFIX . 'setCookie', $data);
 		$cookie = Z::cookieRaw();
 		$cookie[$key] = $value;
 		Cfg::set('cookie', $cookie);
@@ -1476,6 +1486,8 @@ class Z {
 	}
 	/**
 	 * 设置session配置
+	 * @param null $key
+	 * @param null $value
 	 */
 	public static function sessionSet($key = null, $value = null) {
 		$id = self::sessionStart();
@@ -1485,9 +1497,11 @@ class Z {
 		} else {
 			self::arraySet($session, $key, $value);
 		}
-		Cfg::set('session', $session);
+		Cfg::add('session', $session);
 		if (self::isSwoole(true) && ($sessionHandle = self::config()->getSessionHandle())) {
 			$sessionHandle->swooleWrite($id, $_SESSION);
+		} else {
+			$_SESSION = $session;
 		}
 	}
 	/**
@@ -3885,11 +3899,11 @@ abstract class Zls_Database {
 			'slowQueryHandle' => null,
 			'indexDebug' => false,
 			/*
-				             * 索引使用的最小情况，只有小于最小情况的时候才会记录sql到日志
-				             * minIndexType值从好到坏依次是:
-				             * system > const > eq_ref > ref > fulltext > ref_or_null
-				             * > index_merge > unique_subquery > index_subquery > range
-				             * > index > ALL一般来说，得保证查询至少达到range级别，最好能达到ref
+				                             * 索引使用的最小情况，只有小于最小情况的时候才会记录sql到日志
+				                             * minIndexType值从好到坏依次是:
+				                             * system > const > eq_ref > ref > fulltext > ref_or_null
+				                             * > index_merge > unique_subquery > index_subquery > range
+				                             * > index > ALL一般来说，得保证查询至少达到range级别，最好能达到ref
 			*/
 			'minIndexType' => 'ALL',
 			'indexHandle' => null,
@@ -5416,7 +5430,6 @@ class Zls_SeparationRouter extends Zls_Route {
  * @method string                       getClassesDirName()
  * @method string                       getControllerDirName()
  * @method string                       getCookiePrefix()
- * @method string                       getCacheConfig()
  * @method array                        getHmvcModules()
  * @method string                       getTaskDirName()
  * @method string                       getPrimaryAppDir()
