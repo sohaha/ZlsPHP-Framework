@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2020, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.5.5
- * @updatetime    2020-10-22 17:32:01
+ * @since         v2.5.6
+ * @updatetime    2020-10-27 17:31:48
  */
-define('IN_ZLS', '2.5.5');
+define('IN_ZLS', '2.5.6');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
@@ -255,14 +255,17 @@ class Z {
 			ini_set('xdebug.var_display_max_children', -1);
 			$isXdebug = (bool) ini_get('xdebug.overload_var_dump');
 		}
-		$beautify = (!Z::isCli() || Z::isSwoole(true)) && !$isXdebug && !self::isAjax();
-		echo $beautify ? '<pre style="line-height:1.5em;font-size:14px;">' : "\n";
 		@ob_start();
 		$args = func_get_args();
 		empty($args) ? null : call_user_func_array('var_dump', $args);
 		$html = @ob_get_clean();
-		echo $beautify ? htmlspecialchars($html) : $html;
-		echo $beautify ? '</pre>' : "\n";
+		$beautify = (!Z::isCli() || Z::isResidentMemory() || Z::isSwoole(true)) && !$isXdebug && !self::isAjax();
+		if ($beautify) {
+			$html = htmlspecialchars($html);
+			echo "<pre style='line-height:1.5em;font-size:14px;'>{$html}</pre>";
+		} else {
+			echo "\n" . $html . "\n";
+		}
 	}
 
 	public static function isCli() {
@@ -1669,14 +1672,18 @@ class Z {
 
 	public static function postText($key = null, $default = null, $xssClean = true) {
 		$input = [];
-		$expl = explode("&", self::postRaw());
-		foreach ($expl as $r) {
-			$tmp = explode("=", $r);
-			$v = urldecode(self::arrayGet($tmp, 1, ''));
-			$k = preg_replace('/(\[([0-9?])\])/', '.$2', self::arrayGet($tmp, 0, ''));
-			if ($k) {
-				self::arraySet($input, $k, $v);
+		if ($raw = self::postRaw()) {
+			$expl = explode("&", $raw);
+			foreach ($expl as $r) {
+				$tmp = explode("=", $r);
+				$v = urldecode(self::arrayGet($tmp, 1, ''));
+				$k = preg_replace('/(\[([0-9?])\])/', '.$2', self::arrayGet($tmp, 0, ''));
+				if ($k) {
+					self::arraySet($input, $k, $v);
+				}
 			}
+		} else {
+			$input = self::post();
 		}
 		if (is_null($key)) {
 			return $input;
@@ -2607,7 +2614,8 @@ class Zls {
 		$config = Z::config();
 		$contents = null;
 		$api = Z::get('_api');
-		$_apiDoc = (($api !== null) && (bool) $config->getApiDocToken() && (Z::get('_token', '', true) === $config->getApiDocToken()) && class_exists('\Zls\Action\ApiDoc'));
+		$docComment = class_exists('\Zls\Action\ApiDoc');
+		$_apiDoc = (($api !== null) && $docComment && (bool) $config->getApiDocToken() && (Z::get('_token', '', true) === $config->getApiDocToken()));
 		$config = self::getConfig();
 		$class = '';
 		$method = '';
@@ -2659,13 +2667,17 @@ class Zls {
 			$_route->setMethod($method);
 		}
 		$config->setRoute($_route);
-		$contents = !$_apiDoc ? $config->getSeparationRouter($config->getRoute()->getController(), $config->getRoute()->getHmvcModuleName()) : null;
+		$getController = $config->getRoute()->getController();
+		$getHmvcModuleName = $config->getRoute()->getHmvcModuleName();
+		if ($docComment) {
+			$docComment = Z::extension('Action\ApiDoc');
+			if (method_exists($docComment, "init")) {
+				$docComment->init($getController, $getHmvcModuleName);
+			}
+		}
+		$contents = !$_apiDoc ? $config->getSeparationRouter($getController, $getHmvcModuleName) : null;
 		if (!$contents) {
 			if ((bool) $_apiDoc) {
-				/**
-				 * @var \Zls\Action\ApiDoc
-				 */
-				$docComment = Z::extension('Action\ApiDoc');
 				if ('self' == $api) {
 					$docComment::html(
 						'self',
