@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2020, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.5.7
- * @updatetime    2020-10-28 15:52:31
+ * @since         v2.5.8
+ * @updatetime    2020-10-28 18:19:05
  */
-define('IN_ZLS', '2.5.7');
+define('IN_ZLS', '2.5.8');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
@@ -6038,7 +6038,7 @@ class Zls_Logger_Dispatcher {
 			} else {
 				$error = $exception->render(null, true);
 			}
-		} elseif (Z::isCli() && !Z::isSwoole()) {
+		} elseif (Z::isCli() && !Z::isSwoole() && !Z::isResidentMemory()) {
 			$error = $exception->render();
 		} else {
 			$path = [
