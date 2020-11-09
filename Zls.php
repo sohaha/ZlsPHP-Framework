@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2020, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.5.8
- * @updatetime    2020-10-28 18:19:05
+ * @since         v2.5.9
+ * @updatetime    2020-11-09 19:32:49
  */
-define('IN_ZLS', '2.5.8');
+define('IN_ZLS', '2.5.9');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
@@ -1743,7 +1743,7 @@ class Z {
 	 * @return string
 	 */
 	public static function urlPath($subpath = null, $addSlash = false) {
-		self::throwIf(self::isCli() && !Z::isSwoole(), 500, 'urlPath() can not be used in cli mode');
+		self::throwIf(self::isCli() && !Z::isSwoole() && !Z::isResidentMemory(), 500, 'urlPath() can not be used in cli mode');
 		$root = str_replace(['/', '\\'], '/', self::server('DOCUMENT_ROOT', ZLS_PATH));
 		chdir($root);
 		$root = getcwd();
@@ -2281,7 +2281,7 @@ class Zls {
 				$loggerDispatcher = Zls_Logger_Dispatcher::initialize();
 			}
 			try {
-				if (Z::isCli() && !Z::isSwoole()) {
+				if (Z::isCli() && !Z::isSwoole() && !Z::isResidentMemory()) {
 					self::runCli();
 				} elseif (Z::isPluginMode()) {
 					self::runSetData(function () {
