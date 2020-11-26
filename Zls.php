@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2020, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.5.10
- * @updatetime    2020-11-10 13:10:28
+ * @since         v2.5.11
+ * @updatetime    2020-11-26 19:26:12
  */
-define('IN_ZLS', '2.5.10');
+define('IN_ZLS', '2.5.11');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
@@ -5204,26 +5204,19 @@ class Zls_View {
 		}
 		return $this->loadRaw($path, $data, $return);
 	}
-	/**
-	 * @param       $path
-	 * @param array $data
-	 * @param bool $return
-	 *
-	 * @return string
-	 */
-	public function loadRaw($path, $data = [], $return = false) {
-		Z::throwIf(!file_exists($path), 500, 'view file : [ ' . $path . ' ] not found', 'ERROR');
+	public function loadRaw($__p_, $data = [], $__r_ = false) {
+		Z::throwIf(!file_exists($__p_), 500, 'view file : [ ' . $__p_ . ' ] not found', 'ERROR');
 		$data = array_merge(Z::getGlobalData(__CLASS__, []), $data);
 		if (!empty($data)) {
 			extract($data);
 		}
-		if ($return) {
+		if ($__r_) {
 			@ob_start();
-			include $path;
+			include $__p_;
 			$html = @ob_get_clean();
 			return $html;
 		} else {
-			include $path;
+			include $__p_;
 			return '';
 		}
 	}
