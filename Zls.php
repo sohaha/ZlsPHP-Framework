@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2020, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.5.11
- * @updatetime    2020-11-26 19:26:12
+ * @since         v2.5.12
+ * @updatetime    2020-11-30 19:25:28
  */
-define('IN_ZLS', '2.5.11');
+define('IN_ZLS', '2.5.12');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
@@ -2337,6 +2337,10 @@ class Zls {
 		try {
 			return $fn();
 		} catch (\Zls_Exception $e) {
+			$errorCode = $e->getErrorCode();
+			if (in_array($errorCode, [500, 404])) {
+				Z::header(404 === $errorCode ? 'HTTP/1.1 404 Not Found' : 'HTTP/1.1 500 Internal Server Error');
+			}
 			return Zls_Logger_Dispatcher::dispatch($e, true);
 		} catch (\Zls_Exception_Exit $e) {
 			return $e->getMessage();
@@ -4868,9 +4872,6 @@ abstract class Zls_Exception extends \Exception {
 		$this->errorFile = Z::realPath($errorFile);
 		$this->errorLine = $errorLine;
 		$this->trace = debug_backtrace(false);
-		if (in_array($errorCode, [500, 404])) {
-			Z::header(404 === $errorCode ? 'HTTP/1.1 404 Not Found' : 'HTTP/1.1 500 Internal Server Error');
-		}
 	}
 	public function getErrorCode() {
 		return $this->errorCode ? $this->errorCode : $this->getCode();
