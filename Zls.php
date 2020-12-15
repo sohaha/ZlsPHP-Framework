@@ -5,20 +5,21 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2020, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.5.12
- * @updatetime    2020-11-30 19:25:28
+ * @since         v2.5.13
+ * @updatetime    2020-12-15 14:14:38
  */
-define('IN_ZLS', '2.5.12');
+define('IN_ZLS', '2.5.13');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
+defined('ZLS_PHAR_PATH') || define('ZLS_PHAR_PATH', '');
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
-defined('ZLS_JSON_UNESCAPED') || define('ZLS_JSON_UNESCAPED', JSON_UNESCAPED_UNICODE + JSON_UNESCAPED_SLASHES);
-defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
 defined('ZLS_RUN_MODE_CLI') || define('ZLS_RUN_MODE_CLI', true);
+defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
 defined('ZLS_APP_PATH') || define('ZLS_APP_PATH', Z::realPath(ZLS_PATH . 'app', true));
-defined('ZLS_INDEX_NAME') || define('ZLS_INDEX_NAME', pathinfo(__FILE__, PATHINFO_BASENAME));
 defined('ZLS_PACKAGES_PATH') || define('ZLS_PACKAGES_PATH', ZLS_APP_PATH . 'packages/');
+defined('ZLS_INDEX_NAME') || define('ZLS_INDEX_NAME', pathinfo(__FILE__, PATHINFO_BASENAME));
+defined('ZLS_JSON_UNESCAPED') || define('ZLS_JSON_UNESCAPED', JSON_UNESCAPED_UNICODE + JSON_UNESCAPED_SLASHES);
 interface Zls_Logger {
 	public function write(\Zls_Exception $exception);
 }
@@ -89,38 +90,10 @@ class Z {
 	public static function swooleUuid($prefix = '') {
 		if (self::isSwoole()) {
 			$uuid = \Swoole\Coroutine::getuid();
-			// } elseif (!$haveToSwoole && $this->getUseMyid()) {
-			//     $uuid = getmypid();
 		} else {
 			$uuid = 0;
 		}
 		return $prefix . $uuid;
-	}
-	/**
-	 * 返回文件夹路径 / 不存在则创建
-	 *
-	 * @param string $path 文件夹路径
-	 * @param bool $addSlash 是否追加/
-	 * @param bool $isFile 是否是文件路径
-	 * @param bool $entr
-	 * @param bool $safeMode
-	 *
-	 * @return string
-	 */
-	public static function realPathMkdir($path, $addSlash = false, $isFile = false, $entr = true, $safeMode = true) {
-		return self::tap(self::realPath($path, $addSlash, $entr), function ($path) use ($isFile, $safeMode) {
-			if ($isFile) {
-				$path = explode('/', $path);
-				array_pop($path);
-				$path = join('/', $path);
-			}
-			$mkdir = function () use ($path) {
-				if (!is_dir($path)) {
-					mkdir($path, 0777, true);
-				}
-			};
-			$safeMode ? $mkdir() : self::forceUmask($mkdir);
-		});
 	}
 	/**
 	 * 延迟执行
@@ -182,6 +155,9 @@ class Z {
 		if (z::strBeginsWith(strtolower($path), 'phar://')) {
 			return $path;
 		}
+		return self::path($path, $addSlash, $entr);
+	}
+	private static function path($path, $addSlash = false, $entr = true) {
 		$unipath = PATH_SEPARATOR == ':';
 		$separator = DIRECTORY_SEPARATOR;
 		$prefix = realpath((false === $entr) ? (ZLS_PATH . '../') : (true !== $entr ? $entr : ZLS_PATH));
@@ -205,6 +181,30 @@ class Z {
 		$path = $unipath ? (strlen($path) && '/' != $path[0] ? '/' . $path : $path) : $path;
 		$path = str_replace(['/', '\\'], '/', $path);
 		return $path . ($addSlash ? '/' : '');
+	}
+	/**
+	 * 返回文件夹路径 / 不存在则创建
+	 */
+	public static function realPathMkdir($path, $addSlash = false, $isFile = false, $entr = true, $safeMode = true) {
+		return self::tap(self::realPath($path, $addSlash, $entr), function ($path) use ($isFile, $safeMode) {
+			if ($isFile) {
+				$path = explode('/', $path);
+				array_pop($path);
+				$path = join('/', $path);
+			}
+			$mkdir = function () use ($path) {
+				if (!is_dir($path)) {
+					mkdir($path, 0777, true);
+				}
+			};
+			$safeMode ? $mkdir() : self::forceUmask($mkdir);
+		});
+	}
+	public static function realPathPhar($path, $addSlash = false) {
+		if (!ZLS_PHAR_PATH) {
+			return self::realPath($path, $addSlash, false);
+		}
+		return self::safePath($path, ZLS_PHAR_PATH, false) . ($addSlash ? '/' : '');
 	}
 	/**
 	 * 验证字符串开头
@@ -577,19 +577,17 @@ class Z {
 	}
 	/**
 	 * 屏蔽路径中系统的绝对路径部分，转换为安全的用于显示
-	 *
 	 * @param string $path
 	 * @param string $prefix
 	 * @param bool $entr 是否基于入口路径
-	 *
 	 * @return string
 	 */
 	public static function safePath($path, $prefix = '~APP~', $entr = false) {
 		if (!$path) {
 			return '';
 		}
-		$path = self::realPath($path);
-		$siteRoot = is_bool($entr) ? self::realPath('.', false, $entr) : $entr;
+		$path = self::path($path, false, $entr);
+		$siteRoot = is_bool($entr) ? self::path('.', true, $entr) : $entr;
 		$_path = str_replace($siteRoot, '', $path);
 		return $prefix . str_replace($siteRoot, '', $_path);
 	}
@@ -2468,12 +2466,11 @@ class Zls {
 	 */
 	public static function runWeb() {
 		self::initDebug();
-		$config = Z::config();
+		$config = self::getConfig();
 		$contents = null;
 		$api = Z::get('_api');
 		$docComment = class_exists('\Zls\Action\ApiDoc');
 		$_apiDoc = (($api !== null) && $docComment && (bool) $config->getApiDocToken() && (Z::get('_token', '', true) === $config->getApiDocToken()));
-		$config = self::getConfig();
 		$class = '';
 		$method = '';
 		foreach ($config->getRouters() as $router) {
@@ -5324,6 +5321,7 @@ class Zls_Route {
  * @method Zls_Config                         setExceptionHandle($e)
  * @method Zls_Config                         setOutputJsonRender($e)
  * @method Zls_Config                         setCommands($e)
+ * @method Zls_Config                         setBootstrap(callable $e)
  * @method Zls_Config                         setHmvcDirName($e)
  * @method Zls_Config                         setLogsMaxDay($e)
  * @method Zls_Config                         setHttpMiddleware(array $middleware)
@@ -5332,6 +5330,7 @@ class Zls_Route {
  * @method string                       getExceptionMemoryReserveSize()
  * @method string                       getExceptionLevel()
  * @method string                       getAppDir()
+ * @method callable                     getBootstrap()
  * @method string                       getClassesDirName()
  * @method string                       getControllerDirName()
  * @method string                       getCookiePrefix()
@@ -5351,8 +5350,8 @@ class Zls_Route {
  * @method string                       getMethodUriSubfix()
  * @method string                       getConfigDirName()
  * @method bool                         getExceptionControl()
- * @method Zls_Maintain_Handle_Default getMaintainModeHandle()
- * @method Zls_Session                 getSessionHandle()
+ * @method Zls_Maintain_Handle_Default  getMaintainModeHandle()
+ * @method Zls_Session                  getSessionHandle()
  * @method array                        getCommands()
  * @method bool                         getIsRewrite()
  * @method array                        getHttpMiddleware()
@@ -5886,13 +5885,11 @@ class Zls_Config {
 		if (Z::strBeginsWith($method, 'get')) {
 			$argName = lcfirst(str_replace('get', '', $method));
 			return $this->$argName;
-			// }
 		} elseif (Z::strBeginsWith($method, 'set')) {
 			$argName = lcfirst(str_replace('set', '', $method));
 			$value = 1 === count($args) ? $args[0] : $args;
 			$this->$argName = $value;
 			return $this;
-			// }
 		}
 		return false;
 	}
@@ -5901,17 +5898,23 @@ class Zls_Config {
 	 */
 	public function bootstrap() {
 		static $bootstrapCallback;
-		if (!is_callable($bootstrapCallback)) {
-			if (file_exists($bootstrap = $this->getAppDir() . 'bootstrap.php')) {
-				if (!Z::isSwoole()) {
-					$bootstrapCallback = include $bootstrap;
-				} else {
-					Z::swooleBootstrap($this->getAppDir());
+		if (is_callable($bootstrapCallback)) {
+			$bootstrapCallback($this);
+			return;
+		}
+		$bootstrap = $this->getBootstrap();
+		if (is_null($bootstrap)) {
+			if (!is_callable($bootstrapCallback)) {
+				if (file_exists($bootstrap = $this->getAppDir() . 'bootstrap.php')) {
+					if (!Z::isSwoole()) {
+						$bootstrapCallback = include $bootstrap;
+					} else {
+						Z::swooleBootstrap($this->getAppDir());
+					}
 				}
 			}
-		}
-		if (is_callable($bootstrapCallback)) {
-			$bootstrapCallback();
+		} elseif (is_callable($bootstrap)) {
+			$bootstrap($this);
 		}
 	}
 	public function setPrimaryAppDir($primaryAppDir = '') {
