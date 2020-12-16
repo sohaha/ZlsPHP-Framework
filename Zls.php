@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2020, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.5.13
- * @updatetime    2020-12-15 14:14:38
+ * @since         v2.5.14
+ * @updatetime    2020-12-16 15:59:17
  */
-define('IN_ZLS', '2.5.13');
+define('IN_ZLS', '2.5.14');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
@@ -155,7 +155,7 @@ class Z {
 		if (z::strBeginsWith(strtolower($path), 'phar://')) {
 			return $path;
 		}
-		return self::path($path, $addSlash, $entr);
+		return self::path($path ?: '.', $addSlash, $entr);
 	}
 	private static function path($path, $addSlash = false, $entr = true) {
 		$unipath = PATH_SEPARATOR == ':';
@@ -586,10 +586,15 @@ class Z {
 		if (!$path) {
 			return '';
 		}
-		$path = self::path($path, false, $entr);
-		$siteRoot = is_bool($entr) ? self::path('.', true, $entr) : $entr;
-		$_path = str_replace($siteRoot, '', $path);
-		return $prefix . str_replace($siteRoot, '', $_path);
+		if (z::strBeginsWith(strtolower($path), 'phar://')) {
+			return $path;
+		}
+		$realPath = self::path($path, false, $entr);
+		$siteRoot = is_bool($entr) ? self::path('.', false, false) : $entr;
+		if (!Z::strBeginsWith($realPath, $siteRoot)) {
+			$realPath = $siteRoot;
+		}
+		return $prefix . str_replace($siteRoot, '', $realPath);
 	}
 	/**
 	 * 路径是否在指定目录范围内
