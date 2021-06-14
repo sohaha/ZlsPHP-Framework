@@ -3,12 +3,12 @@
  * Zls
  * @author        影浅
  * @email         seekwe@gmail.com
- * @copyright     Copyright (c) 2015 - 2020, 影浅, Inc.
+ * @copyright     Copyright (c) 2015 - 2021, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.5.17
- * @updatetime    2021-03-07 17:10:31
+ * @since         v2.5.18
+ * @updatetime    2021-06-14 20:39:54
  */
-define('IN_ZLS', '2.5.17');
+define('IN_ZLS', '2.5.18');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
@@ -2491,10 +2491,6 @@ class Zls
         try {
             return $fn();
         } catch (\Zls_Exception $e) {
-            $errorCode = $e->getErrorCode();
-            if (in_array($errorCode, [500, 404])) {
-                Z::header(404 === $errorCode ? 'HTTP/1.1 404 Not Found' : 'HTTP/1.1 500 Internal Server Error');
-            }
             return Zls_Logger_Dispatcher::dispatch($e, true);
         } catch (\Zls_Exception_Exit $e) {
             return $e->getMessage();
@@ -3386,7 +3382,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
     private function _checkPrefix($str)
     {
         $prefix = $this->getTablePrefix();
-        if ($prefix && false === strpos($str, $prefix)) {
+        if ($prefix && 0 !== strpos($str, $prefix)) {
             if (!Z::arrayKeyExists($str, $this->_asTable)) {
                 return $prefix . $str;
             }
@@ -6536,7 +6532,12 @@ class Zls_Logger_Dispatcher
                 $error = Z::view()->loadRaw($file, [], true);
             }
         }
+        if(!$error) return '';
         $error = $error . $AppendError;
+        $errorCode = $exception->getErrorCode();
+        if (in_array($errorCode, [500, 404])) {
+            Z::header(404 === $errorCode ? 'HTTP/1.1 404 Not Found' : 'HTTP/1.1 500 Internal Server Error');
+        }
         if (!$result) {
             echo $error;
         }
