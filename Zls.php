@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2021, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.5.19
- * @updatetime    2021-06-30 14:47:03
+ * @since         v2.5.19.1
+ * @updatetime    2021-07-01 15:47:36
  */
-define('IN_ZLS', '2.5.19');
+define('IN_ZLS', '2.5.19.1');
 define('ZLS_CORE_PATH', __FILE__);
 define('SWOOLE_RESPONSE', 'SwooleResponse');
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
@@ -1192,7 +1192,7 @@ class Z
             $name = get_class($beanName);
         } else {
             $name = Zls::getConfig()->getBeanDirName() . '/' . $beanName;
-            $object = self::factory($name, $shared, null, $row);
+            $object = self::factory($name, $shared, null, [$row]);
         }
         self::throwIf(!($object instanceof Zls_Bean), 500, '[ ' . $name . ' ] not a valid Zls_Bean', 'ERROR');
         return $object;
