@@ -5,10 +5,10 @@
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2021, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.6.0
+ * @since         v2.6.1
  * @updatetime    2021-08-24 12:58:15
  */
-define('IN_ZLS', '2.6.0');
+define('IN_ZLS', '2.6.1');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
 defined('ZLS_PHAR_PATH') || define('ZLS_PHAR_PATH', '');
@@ -2889,9 +2889,12 @@ class Zls_Di
         return function () use ($definition, $args) {
             if (!is_object($definition)) {
                 $classNameFn = function ($definition) {
-                    $className1 = str_replace(['\\', '/'], '_', $definition);
-                    $className2 = str_replace(['/', '_'], '\\', $definition);
-                    return class_exists($className1) ? $className1 : (class_exists($className2) ? $className2 : '');
+                    $className = str_replace(['/', '_'], '\\', $definition);
+                    if(class_exists($className)){
+                        return $className;
+                    }
+                    $snakeClassName = str_replace(['\\', '/'], '_', $definition);
+                    return class_exists($snakeClassName) ? $snakeClassName : '';
                 };
                 if (!$className = $classNameFn($definition)) {
                     preg_match('/Hmvc.?(.*)/i', $definition, $match);
@@ -4123,11 +4126,11 @@ abstract class Zls_Database
             'slowQueryHandle' => null,
             'indexDebug' => false,
             /*
-                                             * 索引使用的最小情况，只有小于最小情况的时候才会记录sql到日志
-                                             * minIndexType值从好到坏依次是:
-                                             * system > const > eq_ref > ref > fulltext > ref_or_null
-                                             * > index_merge > unique_subquery > index_subquery > range
-                                             * > index > ALL一般来说，得保证查询至少达到range级别，最好能达到ref
+             * 索引使用的最小情况，只有小于最小情况的时候才会记录sql到日志
+             * minIndexType值从好到坏依次是:
+             * system > const > eq_ref > ref > fulltext > ref_or_null
+             * > index_merge > unique_subquery > index_subquery > range
+             * > index > ALL一般来说，得保证查询至少达到range级别，最好能达到ref
             */
             'minIndexType' => 'ALL',
             'indexHandle' => null,
