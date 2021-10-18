@@ -1,15 +1,14 @@
 <?php
-
 /**
  * Zls
  * @author        影浅
  * @email         seekwe@gmail.com
  * @copyright     Copyright (c) 2015 - 2021, 影浅, Inc.
  * @see           https://docs.73zls.com/zls-php/#/
- * @since         v2.6.4
- * @updatetime    2021-10-09 11:58:51
+ * @since         v2.6.5
+ * @updatetime    2021-10-18 12:22:05
  */
-define('IN_ZLS', '2.6.4');
+define('IN_ZLS', '2.6.5');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
 defined('ZLS_PHAR_PATH') || define('ZLS_PHAR_PATH', '');
@@ -293,7 +292,7 @@ class Z
     {
         static $yes;
         if (!$yes) {
-            $yes = Z::server("ZLSPHP_WORKS");
+            $yes = Z::server('ZLSPHP_WORKS');
         }
         return $yes;
     }
@@ -1324,9 +1323,9 @@ class Z
     {
         $input = [];
         if ($raw = self::postRaw()) {
-            $expl = explode("&", $raw);
+            $expl = explode('&', $raw);
             foreach ($expl as $r) {
-                $tmp = explode("=", $r);
+                $tmp = explode('=', $r);
                 $v = self::arrayGet($tmp, 1, '');
                 $k = explode('.', $tmp[0]);
                 if (count($k) > 1) {
@@ -1489,9 +1488,9 @@ class Z
                     }
                     session_start();
                 }
-                if (!Cfg::get("sessionInitState")) {
+                if (!Cfg::get('sessionInitState')) {
                     Cfg::add('session', isset($_SESSION) ? $_SESSION : []);
-                    Cfg::add("sessionInitState", true);
+                    Cfg::add('sessionInitState', true);
                 }
                 $sessionId = session_id();
             } elseif (self::isResidentMemory()) {
@@ -1674,9 +1673,9 @@ class Z
         $cookie[$key] = $value;
         Cfg::set('cookie', $cookie);
     }
-    public static function header($content = '')
+    public static function header($content = '', $replace = true, $code = null)
     {
-        $arr = array_merge(Cfg::get('setHeader', []), [$content]);
+        $arr = array_merge(Cfg::get('setHeader', []), [[$content, $replace, $code]]);
         Cfg::set('setHeader', $arr);
     }
     public static function hasGlobalData($id, $coroutineId = null)
@@ -1909,9 +1908,9 @@ class Z
             $path = strstr(self::server('REQUEST_URI'), '?', true) ?: self::server('REQUEST_URI');
             if (!$path) {
                 $path = strstr(self::server('SCRIPT_NAME'), ZLS_PATH . '/' . ZLS_INDEX_NAME, true) . self::server(
-                    'PATH_INFO',
-                    self::server('REDIRECT_PATH_INFO')
-                );
+                        'PATH_INFO',
+                        self::server('REDIRECT_PATH_INFO')
+                    );
             }
             $host .= $path;
         }
@@ -2184,7 +2183,7 @@ class Z
     public static function redirect($url, $msg = null, $time = 3, $view = null)
     {
         if (empty($msg) && empty($view)) {
-            self::header('Location: ' . $url);
+            is_array($url) ? self::header('Location: ' . self::arrayGet($url, 0), true, self::arrayGet($url, 1, 302)) : self::header('Location: ' . $url, true, 302);
         } else {
             $time = intval($time) ? intval($time) : 3;
             self::header("refresh:{$time};url={$url}"); //单位秒
@@ -2505,13 +2504,13 @@ class Zls
         $content = ob_get_clean();
         $hs = Cfg::get('setHeader', []);
         foreach ($hs as $c) {
-            header($c);
+            header(...$c);
         }
         $cs = Cfg::get('setCookie', []);
         foreach ($cs as $c) {
             setcookie(...$c);
         }
-        if ($content !== "") {
+        if ($content !== '') {
             echo $content;
         }
     }
@@ -3334,7 +3333,7 @@ class Zls_Database_ActiveRecord extends Zls_Database
     private function _checkPrefix($str)
     {
         $prefix = $this->getTablePrefix();
-        if ($prefix && 0 !== strpos($str, $prefix)) {
+        if ($prefix) {
             if (!Z::arrayKeyExists($str, $this->_asTable)) {
                 return $prefix . $str;
             }
@@ -4937,8 +4936,8 @@ abstract class Zls_Task
     final protected function _filePutContents($lockFilePath, $content)
     {
         Z::throwIf(false === Z::forceUmask(function () use ($lockFilePath, $content) {
-            return file_put_contents($lockFilePath, $content);
-        }), 500, 'can not create file : [ ' . $lockFilePath . ' ]', 'ERROR');
+                return file_put_contents($lockFilePath, $content);
+            }), 500, 'can not create file : [ ' . $lockFilePath . ' ]', 'ERROR');
     }
     final protected function pidIsExists($pid)
     {
@@ -5096,7 +5095,7 @@ abstract class Zls_Task_Single extends Zls_Task
             $tempDirPath = Z::config()->getStorageDirPath();
             $key = md5(
                 Z::config()->getAppDir() . Z::config()->getClassesDirName() . '/'
-                    . Z::config()->getTaskDirName() . '/' . str_replace('_', '/', get_class($this)) . '.php'
+                . Z::config()->getTaskDirName() . '/' . str_replace('_', '/', get_class($this)) . '.php'
             );
             $lockFilePath = Z::realPathMkdir($tempDirPath . 'taskSingle', true, false, false, false) . $key . '.pid';
         }
@@ -5819,10 +5818,10 @@ class Zls_Config
     private $httpMiddleware = [];
     private $databaseMiddleware = [];
     private $clientIpConditions
-    = [
-        'source' => ['HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP', 'REMOTE_ADDR'],
-        'check' => ['HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP'],
-    ];
+        = [
+            'source' => ['HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP', 'REMOTE_ADDR'],
+            'check' => ['HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP'],
+        ];
     /**
      * @return array
      */
