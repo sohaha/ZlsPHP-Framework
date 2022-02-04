@@ -1,12 +1,12 @@
 <?php
-define('IN_ZLS', '2.7.1');
+define('IN_ZLS', '2.7.2');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
 defined('ZLS_PHAR_PATH') || define('ZLS_PHAR_PATH', '');
 defined('ZLS_PATH') || define('ZLS_PATH', getcwd() . '/');
 defined('ZLS_RUN_MODE_CLI') || define('ZLS_RUN_MODE_CLI', true);
 defined('ZLS_RUN_MODE_PLUGIN') || define('ZLS_RUN_MODE_PLUGIN', true);
-defined('ZLS_APP_PATH') || define('ZLS_APP_PATH', Z::realPath(ZLS_PATH . 'app', true));
+defined('ZLS_APP_PATH') || define('ZLS_APP_PATH', Z::realPath(ZLS_PATH . 'ZlsPHP', true));
 defined('ZLS_PACKAGES_PATH') || define('ZLS_PACKAGES_PATH', ZLS_APP_PATH . 'packages/');
 defined('ZLS_INDEX_NAME') || define('ZLS_INDEX_NAME', pathinfo(__FILE__, PATHINFO_BASENAME));
 defined('ZLS_JSON_UNESCAPED') || define('ZLS_JSON_UNESCAPED', JSON_UNESCAPED_UNICODE + JSON_UNESCAPED_SLASHES);
@@ -1012,7 +1012,7 @@ class Z
             $method = $config->getDefaultMethod();
         }
         if ($method) {
-            $middlewares = [];
+            $middlewares = $config->getHttpMiddleware();
             $methodFull = $config->getMethodPrefix() . $method;
             if ($requestMethod && $requestMethod = self::server('request_method')) {
                 $requestMethodFull = $requestMethod . $methodFull;
@@ -1053,10 +1053,8 @@ class Z
                 };
             }
             $sendData = ['originalClass' => $originalClass, 'method' => $method, 'controllerShort' => $controllerShort, 'args' => $args, 'methodFull' => $methodFull, 'class' => $class];
-            return self::tap((new Zls_Pipeline)->send($sendData)->then($config->getHttpMiddleware(), function () use ($middlewares, $sendData, $controllerObject, $methodFull, $args) {
-                return (new Zls_Pipeline)->send($sendData)->then($middlewares, function () use ($controllerObject, $methodFull, $args) {
-                    return call_user_func_array([$controllerObject, $methodFull], $args);
-                });
+            return self::tap((new Zls_Pipeline)->send($sendData)->then($middlewares, function () use ($middlewares, $sendData, $controllerObject, $methodFull, $args) {
+                return call_user_func_array([$controllerObject, $methodFull], $args);
             }), function ($contents) {
                 return (is_array($contents)) ? self::json($contents) : $contents;
             });
@@ -2630,6 +2628,9 @@ class Zls_Pipeline
     {
         return function ($stack, $pipe) {
             return function ($req = []) use ($stack, $pipe) {
+                if (is_callable($req)) {
+                    return $req;
+                }
                 $slice = $this->baseCarry();
                 $callable = $slice($stack, $pipe);
                 return $callable($req);
@@ -2689,7 +2690,6 @@ class Zls_Pipeline
     public function drawReq(array $req)
     {
         $currentClass = $req['originalClass'];
-        $currentMethodType = null;
         $currentData = explode(Zls::getConfig()->getMethodPrefix(), strtolower($req['methodFull']));
         $currentMethod = $currentData[1];
         $currentMethodType = $currentData[0] ?: null;
@@ -2717,7 +2717,7 @@ class Zls_Pipeline
             return true;
         }
         $p = strpos($str, '*');
-        return $p > 0 ? Z::strBeginsWith($key, substr($str, 0, $p)) : false;
+        return $p > 0 && Z::strBeginsWith($key, substr($str, 0, $p));
     }
 }
 class Zls_Command
@@ -2931,6 +2931,775 @@ class Zls_PDO extends PDO
             return true;
         }
         return parent::rollback();
+    }
+}
+abstract class Zls_Database
+{
+    private $driverType;
+    private $database;
+    private $tablePrefix;
+    private $pconnect;
+    private $debug;
+    private $timeout;
+    private $trace;
+    private $charset;
+    private $collate;
+    private $tablePrefixSqlIdentifier;
+    private $slowQueryTime;
+    private $slowQueryHandle;
+    private $slowQueryDebug;
+    private $minIndexType;
+    private $indexDebug;
+    private $indexHandle;
+    private $masters;
+    private $slaves;
+    private $resetSql;
+    private $attribute;
+    private $connectionMasters;
+    private $connectionSlaves;
+    private $versionThan56 = false;
+    private $_errorMsg;
+    private $_lastSql;
+    private $_isInTransaction = false;
+    private $_config;
+    private $_lastInsertId = 0;
+    private $_traceRes = [];
+    private $_cacheTime = null;
+    private $_cacheKey;
+    private $_masterPdo = null;
+    private $_locked = false;
+    public function __construct(array $config = [])
+    {
+        $this->setConfig($config);
+    }
+    public function getDefaultConfig()
+    {
+        return [
+            'debug' => true,
+            'driverType' => 'mysql',
+            'production' => true,
+            'trace' => false,
+            'timeout' => 5,
+            'pconnect' => false,
+            'charset' => 'utf8',
+            'collate' => 'utf8_general_ci',
+            'database' => '',
+            'tablePrefix' => '',
+            'tablePrefixSqlIdentifier' => '_prefix_',
+            'slowQueryDebug' => false,
+            'slowQueryTime' => 3000,
+            'slowQueryHandle' => null,
+            'indexDebug' => false,
+            /*
+             * 索引使用的最小情况，只有小于最小情况的时候才会记录sql到日志
+             * minIndexType值从好到坏依次是:
+             * system > const > eq_ref > ref > fulltext > ref_or_null
+             * > index_merge > unique_subquery > index_subquery > range
+             * > index > ALL一般来说，得保证查询至少达到range级别，最好能达到ref
+             */
+            'minIndexType' => 'ALL',
+            'indexHandle' => null,
+            'attribute' => [],
+            'masters' => [
+                'master01' => [
+                    'hostname' => '127.0.0.1',
+                    'port' => 3306,
+                    'username' => 'root',
+                    'password' => '',
+                ],
+            ],
+            'slaves' => [],
+        ];
+    }
+    /**
+     * 锁定数据库连接，后面的读写都使用同一个主数据库连接
+     * @return $this
+     */
+    public function lock()
+    {
+        $this->_locked = true;
+        return $this;
+    }
+    /**
+     * 解锁数据库连接，后面的读写使用不同的数据库连接
+     * @return $this
+     */
+    public function unlock()
+    {
+        $this->_locked = false;
+        return $this;
+    }
+    /**
+     * 获取上一条数据id（主键）
+     * @return int
+     */
+    public function lastId()
+    {
+        if ($this->_isSqlite()) {
+            return $this->_lastInsertBatchCount > 1 ? ($this->_lastInsertId - $this->_lastInsertBatchCount + 1) : $this->_lastInsertId;
+        } else {
+            return $this->_lastInsertId;
+        }
+    }
+    public function _isSqlite()
+    {
+        return $this->_driverTypeIsString() && 'sqlite' == strtolower($this->getDriverType());
+    }
+    public function _driverTypeIsString()
+    {
+        return 'string' == gettype($this->getDriverType());
+    }
+    public function getDriverType()
+    {
+        return $this->driverType;
+    }
+    public function setDriverType($driverType)
+    {
+        $this->driverType = $driverType;
+        return $this;
+    }
+    public function error()
+    {
+        return $this->_errorMsg;
+    }
+    public function lastSql()
+    {
+        return $this->_lastSql;
+    }
+    public function getSlowQueryDebug()
+    {
+        return $this->slowQueryDebug;
+    }
+    public function setSlowQueryDebug($slowQueryDebug)
+    {
+        $this->slowQueryDebug = $slowQueryDebug;
+        return $this;
+    }
+    public function getIndexDebug()
+    {
+        return $this->indexDebug;
+    }
+    public function setIndexDebug($indexDebug)
+    {
+        $this->indexDebug = $indexDebug;
+        return $this;
+    }
+    public function &getSlowQueryHandle()
+    {
+        return $this->slowQueryHandle;
+    }
+    public function setSlowQueryHandle(Zls_Database_SlowQuery_Handle $slowQueryHandle)
+    {
+        $this->slowQueryHandle = $slowQueryHandle;
+        return $this;
+    }
+    public function &getIndexHandle()
+    {
+        return $this->indexHandle;
+    }
+    public function setIndexHandle(Zls_Database_Index_Handle $indexHandle)
+    {
+        $this->indexHandle = $indexHandle;
+        return $this;
+    }
+    public function getConfig()
+    {
+        return $this->_config;
+    }
+    public function setConfig(array $config = [])
+    {
+        foreach (($this->_config = array_merge($this->getDefaultConfig(), $config)) as $key => $value) {
+            $this->{$key} = $value;
+        }
+        $this->connectionMasters = [];
+        $this->connectionSlaves = [];
+        $this->_errorMsg = '';
+        $this->_lastSql = '';
+        $this->_isInTransaction = false;
+        $this->_lastInsertId = 0;
+        $this->_cacheKey = '';
+        $this->_cacheTime = null;
+        $this->_masterPdo = '';
+        $this->_locked = false;
+    }
+    public function getMasters()
+    {
+        return $this->masters;
+    }
+    public function setMasters($masters)
+    {
+        $this->masters = $masters;
+        return $this;
+    }
+    public function getMaster($key)
+    {
+        return $this->masters[$key];
+    }
+    public function getSlaves()
+    {
+        return $this->slaves;
+    }
+    public function setSlaves($slaves)
+    {
+        $this->slaves = $slaves;
+        return $this;
+    }
+    public function getSlave($key)
+    {
+        return $this->slaves[$key];
+    }
+    /**
+     * @return bool
+     */
+    public function begin()
+    {
+        if (!$this->_init()) {
+            return false;
+        }
+        $this->_masterPdo->beginTransaction();
+        $this->_isInTransaction = true;
+        return true;
+    }
+    private function _init()
+    {
+        $info = [
+            'master' => [
+                'getMasters',
+                'connectionMasters',
+            ],
+            'slave' => [
+                'getSlaves',
+                'connectionSlaves',
+            ],
+        ];
+        try {
+            foreach ($info as $type => $group) {
+                $configGroup = $this->{$group[0]}();
+                $connections = &$this->{$group[1]};
+                foreach ($configGroup as $key => $config) {
+                    //  如果连接已经存在则不再初始化新的
+                    if (!Z::arrayKeyExists($key, $connections)) {
+                        if (true) {
+                        }
+                        if ($this->_driverTypeIsString()) {
+                            $options[PDO::ATTR_ERRMODE] = PDO::ERRMODE_EXCEPTION;
+                            $options[PDO::ATTR_PERSISTENT] = $this->getPconnect();
+                            $options[PDO::ATTR_STRINGIFY_FETCHES] = false;
+                            $options[PDO::ATTR_EMULATE_PREPARES] = false;
+                            $options[PDO::ATTR_ORACLE_NULLS] = PDO::NULL_TO_STRING;
+                            if ($this->_isMysql()) {
+                                $options[PDO::ATTR_TIMEOUT] = $this->getTimeout();
+                                $options[\PDO::MYSQL_ATTR_INIT_COMMAND] = 'SET NAMES ' . $this->getCharset() . ' COLLATE ' . $this->getCollate();
+                                $dsn = 'mysql:host=' . $config['hostname'] . ';port=' . $config['port'] . ';dbname=' . $this->getDatabase() . ';charset=' . $this->getCharset();
+                                $connections[$key] = new \Zls_PDO($dsn, $config['username'], $config['password'], $options);
+                                $connections[$key]->exec('SET NAMES ' . $this->getCharset());
+                            } elseif ($this->_isSqlsrv()) {
+                                $dsn = 'sqlsrv:Server=' . $config['hostname'] . ',' . $config['port'] . ';Database=' . $this->getDatabase() . ';MultipleActiveResultSets=false';
+                                unset($options[PDO::ATTR_PERSISTENT], $options[PDO::ATTR_EMULATE_PREPARES]);
+                                $options = $options + [1001 => $this->getTimeout()];
+                                if (property_exists('PDO', 'SQLSRV_ATTR_FETCHES_NUMERIC_TYPE')) {
+                                    $options[PDO::SQLSRV_ATTR_FETCHES_NUMERIC_TYPE] = true;
+                                }
+                                $connections[$key] = new \Zls_PDO($dsn, $config['username'], $config['password'], $options);
+                                $connections[$key]->setAttribute(PDO::ATTR_STRINGIFY_FETCHES, false);
+                            } elseif ($this->_isSqlite()) {
+                                Z::throwIf(!file_exists($this->getDatabase()), 'Database', 'sqlite3 database file [' . Z::realPath($this->getDatabase()) . '] not found', 'ERROR');
+                                $connections[$key] = new \Zls_PDO('sqlite:' . $this->getDatabase(), null, null, $options);
+                            } else {
+                                Z::throwIf(true, 'Database', 'unknown driverType [ ' . $this->getDriverType() . ' ]', 'ERROR');
+                            }
+                        } else {
+                            $db = $this->getDriverType();
+                            $connections[$key] = is_callable($db) ? $db() : $db;
+                        }
+                        $getAttribute = $this->getAttribute();
+                        if (!empty($getAttribute) && is_array($getAttribute)) {
+                            foreach ($getAttribute as $k => $v) {
+                                $connections[$key]->setAttribute($k, $v);
+                            }
+                        }
+                    }
+                }
+            }
+            if (empty($this->connectionSlaves) && !empty($this->connectionMasters)) {
+                $this->connectionSlaves[0] = $this->connectionMasters[array_rand($this->connectionMasters)];
+            }
+            if (empty($this->_masterPdo) && !empty($this->connectionMasters)) {
+                $this->_masterPdo = $this->connectionMasters[array_rand($this->connectionMasters)];
+            }
+            return !(empty($this->connectionMasters) && empty($this->connectionSlaves));
+        } catch (\Exception $e) {
+            $this->_displayError($e);
+        }
+        return false;
+    }
+    public function getPconnect()
+    {
+        return $this->pconnect;
+    }
+    public function setPconnect($pconnect)
+    {
+        $this->pconnect = $pconnect;
+        return $this;
+    }
+    public function _isMysql()
+    {
+        return $this->_driverTypeIsString() && 'mysql' == strtolower($this->getDriverType());
+    }
+    /**
+     * @return mixed
+     */
+    public function getTimeout()
+    {
+        return $this->timeout;
+    }
+    /**
+     * @param mixed $timeout
+     */
+    public function setTimeout($timeout)
+    {
+        $this->timeout = $timeout;
+    }
+    /**
+     * @return string
+     */
+    public function getCharset()
+    {
+        return $this->charset;
+    }
+    public function setCharset($charset)
+    {
+        $this->charset = $charset;
+        return $this;
+    }
+    /**
+     * @return string
+     */
+    public function getCollate()
+    {
+        return $this->collate;
+    }
+    public function setCollate($collate)
+    {
+        $this->collate = $collate;
+        return $this;
+    }
+    /**
+     * @return string
+     */
+    public function getDatabase()
+    {
+        return $this->database;
+    }
+    public function setDatabase($database)
+    {
+        $this->database = $database;
+        return $this;
+    }
+    public function _isSqlsrv()
+    {
+        return $this->_driverTypeIsString() && 'sqlsrv' == strtolower($this->getDriverType());
+    }
+    public function getAttribute()
+    {
+        return $this->attribute;
+    }
+    protected function _displayError($e, $code = 0)
+    {
+        $sql = $this->_lastSql ? ' , ' . "\n" . 'with query : ' . $this->_lastSql : '';
+        $group = 'Database Group : [ ' . $this->group . ' ] , error : ';
+        if ($e instanceof Exception) {
+            $this->_errorMsg = $e->getMessage() . $sql;
+        } else {
+            $this->_errorMsg = $e . $sql;
+        }
+        if ($this->getDebug() || $this->_isInTransaction) {
+            if ($e instanceof Exception) {
+                throw new \Zls_Exception_Database(
+                    Z::toUtf8($group . $this->_errorMsg),
+                    500,
+                    'Zls_Exception_Database',
+                    $e->getFile(),
+                    $e->getLine()
+                );
+            } else {
+                throw new \Zls_Exception_Database(Z::toUtf8($group . $e . $sql), $code);
+            }
+        }
+    }
+    public function getDebug()
+    {
+        return $this->debug;
+    }
+    public function setDebug($debug)
+    {
+        $this->debug = $debug;
+        return $this;
+    }
+    /**
+     * @return Zls_PDO
+     */
+    public function pdoInstance()
+    {
+        if (!$this->_masterPdo) {
+            $this->_init();
+        }
+        return $this->_masterPdo;
+    }
+    public function commit()
+    {
+        if (!$this->_init()) {
+            return false;
+        }
+        $this->_masterPdo->commit();
+        $this->_isInTransaction = $this->_masterPdo->isInTransaction();
+    }
+    public function rollback()
+    {
+        if (!$this->_init()) {
+            return false;
+        }
+        $this->_masterPdo->rollback();
+    }
+    public function cache($cacheTime, $cacheKey = '')
+    {
+        $this->_cacheTime = (int)$cacheTime;
+        $this->_cacheKey = $cacheKey;
+        return $this;
+    }
+    /**
+     * @return string
+     */
+    public function reset()
+    {
+        if ($this->arFrom) {
+            $sql = $this->getSql();
+            $values = $this->getSqlValues();
+            if ($resetSql = $this->resetSql()) {
+                $resetSql($sql, $values, $this->vsprintfSql($sql, $values));
+            }
+            $preview = $this->vsprintfSql($sql, $values);
+        } else {
+            $preview = '';
+        }
+        return Z::tap($preview, function () {
+            $this->_cacheKey = '';
+            $this->_cacheTime = null;
+            $this->_reset();
+        });
+    }
+    abstract public function getSql();
+    public function getSqlValues()
+    {
+        return $this->_getValues();
+    }
+    protected function _reset()
+    {
+    }
+    abstract protected function _getValues();
+    public function resetSql()
+    {
+        return $this->resetSql;
+    }
+    private function vsprintfSql($sql, $values)
+    {
+        return !!$values ? vsprintf(str_replace(['%', '?'], ['%%', '%s'], $sql), z::arrayMap($values, function ($e) {
+            return is_string($e) ? "'{$e}'" : $e;
+        })) : $sql;
+    }
+    /**
+     * 执行一个sql语句，写入型的返回bool或者影响的行数（insert,delete,replace,update），搜索型的返回结果集
+     *
+     * @param string $sql    sql语句
+     * @param array  $values 参数
+     * @param bool   $reconnection
+     *
+     * @return array|bool|int|Zls_Database_Resultset
+     */
+    public function execute($sql = '', array $values = [], $reconnection = true)
+    {
+        $cfg = Zls::getConfig();
+        $middleware = $cfg->getDatabaseMiddleware();
+        $pip = new Zls_Pipeline();
+        $trace = [];
+        if ($this->slowQueryDebug || $this->indexDebug) {
+            $trace = Z::tap(debug_backtrace(), function (&$trace) {
+                $_trace = ('Zls_Dao' == Z::arrayGet($trace, '1.class')) ? $trace[1] : $trace[0];
+                $trace = [
+                    'file' => $_trace['file'],
+                    'line' => $_trace['line'],
+                    'class' => $_trace['class'],
+                    'function' => $_trace['function'],
+                ];
+            });
+        }
+        if (!$this->_init()) {
+            return false;
+        }
+        $startTime = Z::microtime();
+        $sql = $sql ? $this->_checkPrefixIdentifier($sql) : $this->getSql();
+        $values = !empty($values) ? $values : $this->_getValues();
+        $resetSql = $this->resetSql();
+        if (is_callable($resetSql)) {
+            $middleware[] = function ($request, callable $next) use ($resetSql) {
+                list($sql, $values) = $request;
+                $resetSql($sql, $values, $this->vsprintfSql($sql, $values));
+                return $next([$sql, $values]);
+            };
+        }
+        $isMiddleware = false;
+        $pipRun = function () use ($pip, $middleware, &$sql, &$values) {
+            return $pip->send([$sql, $values])->then($middleware, function ($request) use (&$sql, &$values) {
+                list($sql, $values) = $request;
+                $this->_lastSql = $this->vsprintfSql($sql, $values);
+                return null;
+            });
+        };
+        $cacheHandle = null;
+        if (is_numeric($this->_cacheTime)) {
+            $cacheHandle = Z::config()->getCacheHandle();
+            Z::throwIf(empty($cacheHandle), 500, 'no cache handle found , please set cache handle', 'ERROR');
+            $key = empty($this->_cacheKey) ? md5($sql . var_export($values, true)) : $this->_cacheKey;
+            if ($this->_cacheTime > 0) {
+                $return = $cacheHandle->get($key);
+                if (!is_null($return)) {
+                    $this->_cacheKey = '';
+                    $this->_cacheTime = null;
+                    $this->_reset();
+                    return $return;
+                }
+            } else {
+                $cacheHandle->delete($key);
+            }
+        }
+        $isWriteType = $this->_isWriteType($sql);
+        $isWritetRowsType = $this->_isWriteRowsType($sql);
+        $isWriteInsertType = $this->_isWriteInsertType($sql);
+        $return = false;
+        try {
+            $pdo = &$this->_masterPdo;
+            if (!$this->_isInTransaction && !$this->isLocked()) {
+                if ($isWriteType) {
+                    $pdo = &$this->connectionMasters[array_rand($this->connectionMasters)];
+                } else {
+                    $pdo = &$this->connectionSlaves[array_rand($this->connectionSlaves)];
+                }
+            }
+            $mReturn = $pipRun();
+            if (is_callable($mReturn)) {
+                $isMiddleware = true;
+                $return = new \Zls_Database_Resultset($mReturn());
+            } else if ($sth = $pdo->prepare($sql)) {
+                if ($isWriteType) {
+                    $status = $sth->execute($values);
+                    $return = $isWritetRowsType ? $sth->rowCount() : $status;
+                    $this->_lastInsertId = $isWriteInsertType ? $pdo->lastInsertId() : 0;
+                } else {
+                    $return = $sth->execute($values) ? $sth->fetchAll(PDO::FETCH_ASSOC) : [];
+                    $return = new \Zls_Database_Resultset($return);
+                }
+            } else {
+                $errorInfo = $pdo->errorInfo();
+                $this->_displayError($errorInfo[2], $errorInfo[1]);
+            }
+            $usingTime = (Z::microtime() - $startTime) . '';
+            $explainRows = [];
+            if ($this->_isMysql() && !$isMiddleware && ($this->slowQueryDebug || $this->indexDebug) && (($this->_isExplain56Type($sql) && $this->versionThan56) || ($this->_isExplainType($sql) && !$this->versionThan56))) {
+                reset($this->connectionMasters);
+                $sth = $this->connectionMasters[key($this->connectionMasters)]->prepare('EXPLAIN ' . $sql);
+                $sth->execute($values);
+                $explainRows = $sth->fetchAll(PDO::FETCH_ASSOC);
+            }
+            if ($this->slowQueryDebug && ($usingTime >= $this->getSlowQueryTime())) {
+                if ($this->slowQueryHandle instanceof Zls_Database_SlowQuery_Handle) {
+                    $this->slowQueryHandle->handle($sql, var_export($values, true), var_export($explainRows, true), $usingTime, $trace);
+                }
+            }
+            if ($this->indexDebug && !$isMiddleware && $this->indexHandle instanceof Zls_Database_Index_Handle) {
+                $badIndex = false;
+                if ($this->_isMysql()) {
+                    $order = [
+                        'system' => 1,
+                        'const' => 2,
+                        'eq_ref' => 3,
+                        'ref' => 4,
+                        'fulltext' => 5,
+                        'ref_or_null' => 6,
+                        'index_merge' => 7,
+                        'unique_subquery' => 8,
+                        'index_subquery' => 9,
+                        'range' => 10,
+                        'index' => 11,
+                        'all' => 12,
+                    ];
+                    foreach ($explainRows as $row) {
+                        if (
+                            Z::arrayKeyExists(
+                                strtolower($row['type']),
+                                $order
+                            )
+                            && Z::arrayKeyExists(strtolower($this->getMinIndexType()), $order)
+                        ) {
+                            $key = $order[strtolower($row['type'])];
+                            $minKey = $order[strtolower($this->getMinIndexType())];
+                            if ($key > $minKey) {
+                                if (false === stripos($row['Extra'], 'optimized')) {
+                                    $badIndex = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                if ($badIndex) {
+                    $this->indexHandle->handle($sql, var_export($values, true), var_export($explainRows, true), $usingTime, $trace);
+                }
+            }
+            if (!is_null($this->_cacheTime) && (bool)$return->row()) {
+                $key = empty($this->_cacheKey) ? md5($sql . var_export($values, true)) : $this->_cacheKey;
+                if ($this->_cacheTime > 0) {
+                    $cacheHandle->set($key, $return, $this->_cacheTime);
+                } else {
+                    $cacheHandle->delete($key);
+                }
+            }
+            $this->_cacheKey = '';
+            $this->_cacheTime = null;
+            $this->_reset();
+        } catch (\Exception $e) {
+            if ($reconnection && stristr($e->getMessage(), 'server has gone away')) {
+                $this->close();
+                return $this->execute($sql, $values, false);
+            } else {
+                $this->_reset();
+                $this->_displayError($e);
+            }
+        }
+        if ($this->_isMysql() && $this->getTrace() && true == Z::config()->getTraceStatus('mysql')) {
+            if (preg_match('/SELECT /ims', $sql)) {
+                try {
+                    $trace['runtime'] = (Z::microtime() - $startTime) . 'ms';
+                    $trace['time'] = date('Y-m-d H:i:s');
+                    $sth = @$pdo->prepare('EXPLAIN ' . $sql);
+                    $sql = str_replace("\n", ' ', $sql);
+                    $arr = $sth->execute($values) ? $sth->fetch(PDO::FETCH_ASSOC) : [];
+                    $this->_traceRes = $trace + $arr + ['Values' => join(',', $values), 'SQL' => $sql];
+                    $this->trace();
+                } catch (\Exception $e) {
+                }
+            }
+        }
+        return $return;
+    }
+    private function _checkPrefixIdentifier($str)
+    {
+        $prefix = $this->getTablePrefix();
+        $identifier = $this->getTablePrefixSqlIdentifier();
+        return $identifier ? str_replace($identifier, $prefix, $str) : $str;
+    }
+    public function getTablePrefix()
+    {
+        return $this->tablePrefix;
+    }
+    public function setTablePrefix($tablePrefix)
+    {
+        $this->tablePrefix = $tablePrefix;
+        return $this;
+    }
+    public function getTablePrefixSqlIdentifier()
+    {
+        return $this->tablePrefixSqlIdentifier;
+    }
+    public function setTablePrefixSqlIdentifier($tablePrefixSqlIdentifier)
+    {
+        $this->tablePrefixSqlIdentifier = $tablePrefixSqlIdentifier;
+        return $this;
+    }
+    private function _isWriteType($sql)
+    {
+        if (!preg_match(
+            '/^\s*"?(SET|INSERT|UPDATE|DELETE|REPLACE|CREATE|DROP|TRUNCATE|LOAD DATA|COPY|ALTER|GRANT|REVOKE|LOCK|UNLOCK)\s+/i',
+            $sql
+        )) {
+            return false;
+        }
+        return true;
+    }
+    private function _isWriteRowsType($sql)
+    {
+        if (!preg_match('/^\s*"?(INSERT|UPDATE|DELETE|REPLACE)\s+/i', $sql)) {
+            return false;
+        }
+        return true;
+    }
+    private function _isWriteInsertType($sql)
+    {
+        if (!preg_match('/^\s*"?(INSERT|REPLACE)\s+/i', $sql)) {
+            return false;
+        }
+        return true;
+    }
+    /**
+     * 数据库连接是否处于锁定状态
+     * @return bool
+     */
+    public function isLocked()
+    {
+        return $this->_locked;
+    }
+    private function _isExplain56Type($sql)
+    {
+        if (!preg_match('/^\s*"?(SELECT|INSERT|UPDATE|DELETE|REPLACE)\s+/i', $sql)) {
+            return false;
+        }
+        return true;
+    }
+    private function _isExplainType($sql)
+    {
+        if (!preg_match('/^\s*"?(SELECT)\s+/i', $sql)) {
+            return false;
+        }
+        return true;
+    }
+    public function getSlowQueryTime()
+    {
+        return $this->slowQueryTime;
+    }
+    public function setSlowQueryTime($slowQueryTime)
+    {
+        $this->slowQueryTime = $slowQueryTime;
+        return $this;
+    }
+    public function getMinIndexType()
+    {
+        return $this->minIndexType;
+    }
+    public function setMinIndexType($minIndexType)
+    {
+        $this->minIndexType = $minIndexType;
+        return $this;
+    }
+    public function close()
+    {
+        $this->_masterPdo = null;
+        $this->connectionMasters = [];
+        $this->connectionSlaves = [];
+        return $this;
+    }
+    public function getTrace()
+    {
+        return $this->trace;
+    }
+    public function setTrace($trace)
+    {
+        $this->trace = $trace;
+        return $this;
+    }
+    public function trace()
+    {
+        if ((bool)$this->_traceRes) {
+            Z::log(null, false)->mysql($this->_traceRes, $this->getDriverType());
+        }
     }
 }
 class Zls_Database_ActiveRecord extends Zls_Database
@@ -4035,795 +4804,6 @@ abstract class Zls_Bean
         return static::$noTransform ? $method : lcfirst(Z::strCamel2Snake($method));
     }
 }
-abstract class Zls_Database
-{
-    private $driverType;
-    private $database;
-    private $tablePrefix;
-    private $pconnect;
-    private $debug;
-    private $timeout;
-    private $trace;
-    private $charset;
-    private $collate;
-    private $tablePrefixSqlIdentifier;
-    private $slowQueryTime;
-    private $slowQueryHandle;
-    private $slowQueryDebug;
-    private $minIndexType;
-    private $indexDebug;
-    private $indexHandle;
-    private $masters;
-    private $slaves;
-    private $resetSql;
-    private $attribute;
-    private $connectionMasters;
-    private $connectionSlaves;
-    private $versionThan56 = false;
-    private $_errorMsg;
-    private $_lastSql;
-    private $_lastPdoInstance;
-    private $_isInTransaction = false;
-    private $_config;
-    private $_lastInsertId = 0;
-    private $_traceRes = [];
-    private $_cacheTime = null;
-    private $_cacheKey;
-    private $_masterPdo = null;
-    private $_locked = false;
-    public function __construct(array $config = [])
-    {
-        $this->setConfig($config);
-    }
-    public function getDefaultConfig()
-    {
-        return [
-            'debug' => true,
-            'driverType' => 'mysql',
-            'production' => true,
-            'trace' => false,
-            'timeout' => 5,
-            'pconnect' => false,
-            'charset' => 'utf8',
-            'collate' => 'utf8_general_ci',
-            'database' => '',
-            'tablePrefix' => '',
-            'tablePrefixSqlIdentifier' => '_prefix_',
-            'slowQueryDebug' => false,
-            'slowQueryTime' => 3000,
-            'slowQueryHandle' => null,
-            'indexDebug' => false,
-            /*
-             * 索引使用的最小情况，只有小于最小情况的时候才会记录sql到日志
-             * minIndexType值从好到坏依次是:
-             * system > const > eq_ref > ref > fulltext > ref_or_null
-             * > index_merge > unique_subquery > index_subquery > range
-             * > index > ALL一般来说，得保证查询至少达到range级别，最好能达到ref
-             */
-            'minIndexType' => 'ALL',
-            'indexHandle' => null,
-            'attribute' => [],
-            'masters' => [
-                'master01' => [
-                    'hostname' => '127.0.0.1',
-                    'port' => 3306,
-                    'username' => 'root',
-                    'password' => '',
-                ],
-            ],
-            'slaves' => [],
-        ];
-    }
-    public function &getLastPdoInstance()
-    {
-        return $this->_lastPdoInstance;
-    }
-    /**
-     * 锁定数据库连接，后面的读写都使用同一个主数据库连接
-     * @return $this
-     */
-    public function lock()
-    {
-        $this->_locked = true;
-        return $this;
-    }
-    /**
-     * 解锁数据库连接，后面的读写使用不同的数据库连接
-     * @return $this
-     */
-    public function unlock()
-    {
-        $this->_locked = false;
-        return $this;
-    }
-    /**
-     * 获取上一条数据id（主键）
-     * @return int
-     */
-    public function lastId()
-    {
-        if ($this->_isSqlite()) {
-            return $this->_lastInsertBatchCount > 1 ? ($this->_lastInsertId - $this->_lastInsertBatchCount + 1) : $this->_lastInsertId;
-        } else {
-            return $this->_lastInsertId;
-        }
-    }
-    public function _isSqlite()
-    {
-        return $this->_driverTypeIsString() && 'sqlite' == strtolower($this->getDriverType());
-    }
-    public function _driverTypeIsString()
-    {
-        return 'string' == gettype($this->getDriverType());
-    }
-    public function getDriverType()
-    {
-        return $this->driverType;
-    }
-    public function setDriverType($driverType)
-    {
-        $this->driverType = $driverType;
-        return $this;
-    }
-    public function error()
-    {
-        return $this->_errorMsg;
-    }
-    public function lastSql()
-    {
-        return $this->_lastSql;
-    }
-    public function getSlowQueryDebug()
-    {
-        return $this->slowQueryDebug;
-    }
-    public function setSlowQueryDebug($slowQueryDebug)
-    {
-        $this->slowQueryDebug = $slowQueryDebug;
-        return $this;
-    }
-    public function getIndexDebug()
-    {
-        return $this->indexDebug;
-    }
-    public function setIndexDebug($indexDebug)
-    {
-        $this->indexDebug = $indexDebug;
-        return $this;
-    }
-    public function &getSlowQueryHandle()
-    {
-        return $this->slowQueryHandle;
-    }
-    public function setSlowQueryHandle(Zls_Database_SlowQuery_Handle $slowQueryHandle)
-    {
-        $this->slowQueryHandle = $slowQueryHandle;
-        return $this;
-    }
-    public function &getIndexHandle()
-    {
-        return $this->indexHandle;
-    }
-    public function setIndexHandle(Zls_Database_Index_Handle $indexHandle)
-    {
-        $this->indexHandle = $indexHandle;
-        return $this;
-    }
-    public function getConfig()
-    {
-        return $this->_config;
-    }
-    public function setConfig(array $config = [])
-    {
-        foreach (($this->_config = array_merge($this->getDefaultConfig(), $config)) as $key => $value) {
-            $this->{$key} = $value;
-        }
-        $this->connectionMasters = [];
-        $this->connectionSlaves = [];
-        $this->_errorMsg = '';
-        $this->_lastSql = '';
-        $this->_isInTransaction = false;
-        $this->_lastInsertId = 0;
-        $this->_lastPdoInstance = null;
-        $this->_cacheKey = '';
-        $this->_cacheTime = null;
-        $this->_masterPdo = '';
-        $this->_locked = false;
-    }
-    public function getMasters()
-    {
-        return $this->masters;
-    }
-    public function setMasters($masters)
-    {
-        $this->masters = $masters;
-        return $this;
-    }
-    public function getMaster($key)
-    {
-        return $this->masters[$key];
-    }
-    public function getSlaves()
-    {
-        return $this->slaves;
-    }
-    public function setSlaves($slaves)
-    {
-        $this->slaves = $slaves;
-        return $this;
-    }
-    public function getSlave($key)
-    {
-        return $this->slaves[$key];
-    }
-    /**
-     * @return bool
-     */
-    public function begin()
-    {
-        if (!$this->_init()) {
-            return false;
-        }
-        $this->_masterPdo->beginTransaction();
-        $this->_isInTransaction = true;
-        return true;
-    }
-    private function _init()
-    {
-        $info = [
-            'master' => [
-                'getMasters',
-                'connectionMasters',
-            ],
-            'slave' => [
-                'getSlaves',
-                'connectionSlaves',
-            ],
-        ];
-        try {
-            foreach ($info as $type => $group) {
-                $configGroup = $this->{$group[0]}();
-                $connections = &$this->{$group[1]};
-                foreach ($configGroup as $key => $config) {
-                    //  如果连接已经存在则不再初始化新的
-                    if (!Z::arrayKeyExists($key, $connections)) {
-                        if (true) {
-                        }
-                        if ($this->_driverTypeIsString()) {
-                            $options[PDO::ATTR_ERRMODE] = PDO::ERRMODE_EXCEPTION;
-                            $options[PDO::ATTR_PERSISTENT] = $this->getPconnect();
-                            $options[PDO::ATTR_STRINGIFY_FETCHES] = false;
-                            $options[PDO::ATTR_EMULATE_PREPARES] = false;
-                            $options[PDO::ATTR_ORACLE_NULLS] = PDO::NULL_TO_STRING;
-                            if ($this->_isMysql()) {
-                                $options[PDO::ATTR_TIMEOUT] = $this->getTimeout();
-                                $options[\PDO::MYSQL_ATTR_INIT_COMMAND] = 'SET NAMES ' . $this->getCharset() . ' COLLATE ' . $this->getCollate();
-                                $dsn = 'mysql:host=' . $config['hostname'] . ';port=' . $config['port'] . ';dbname=' . $this->getDatabase() . ';charset=' . $this->getCharset();
-                                $connections[$key] = new \Zls_PDO($dsn, $config['username'], $config['password'], $options);
-                                $connections[$key]->exec('SET NAMES ' . $this->getCharset());
-                            } elseif ($this->_isSqlsrv()) {
-                                $dsn = 'sqlsrv:Server=' . $config['hostname'] . ',' . $config['port'] . ';Database=' . $this->getDatabase() . ';MultipleActiveResultSets=false';
-                                unset($options[PDO::ATTR_PERSISTENT], $options[PDO::ATTR_EMULATE_PREPARES]);
-                                $options = $options + [1001 => $this->getTimeout()];
-                                if (property_exists('PDO', 'SQLSRV_ATTR_FETCHES_NUMERIC_TYPE')) {
-                                    $options[PDO::SQLSRV_ATTR_FETCHES_NUMERIC_TYPE] = true;
-                                }
-                                $connections[$key] = new \Zls_PDO($dsn, $config['username'], $config['password'], $options);
-                                $connections[$key]->setAttribute(PDO::ATTR_STRINGIFY_FETCHES, false);
-                            } elseif ($this->_isSqlite()) {
-                                Z::throwIf(!file_exists($this->getDatabase()), 'Database', 'sqlite3 database file [' . Z::realPath($this->getDatabase()) . '] not found', 'ERROR');
-                                $connections[$key] = new \Zls_PDO('sqlite:' . $this->getDatabase(), null, null, $options);
-                            } else {
-                                Z::throwIf(true, 'Database', 'unknown driverType [ ' . $this->getDriverType() . ' ]', 'ERROR');
-                            }
-                        } else {
-                            $db = $this->getDriverType();
-                            $connections[$key] = is_callable($db) ? $db() : $db;
-                        }
-                        $getAttribute = $this->getAttribute();
-                        if (!empty($getAttribute) && is_array($getAttribute)) {
-                            foreach ($getAttribute as $k => $v) {
-                                $connections[$key]->setAttribute($k, $v);
-                            }
-                        }
-                    }
-                }
-            }
-            if (empty($this->connectionSlaves) && !empty($this->connectionMasters)) {
-                $this->connectionSlaves[0] = $this->connectionMasters[array_rand($this->connectionMasters)];
-            }
-            if (empty($this->_masterPdo) && !empty($this->connectionMasters)) {
-                $this->_masterPdo = $this->connectionMasters[array_rand($this->connectionMasters)];
-            }
-            return !(empty($this->connectionMasters) && empty($this->connectionSlaves));
-        } catch (\Exception $e) {
-            $this->_displayError($e);
-        }
-        return false;
-    }
-    public function getPconnect()
-    {
-        return $this->pconnect;
-    }
-    public function setPconnect($pconnect)
-    {
-        $this->pconnect = $pconnect;
-        return $this;
-    }
-    public function _isMysql()
-    {
-        return $this->_driverTypeIsString() && 'mysql' == strtolower($this->getDriverType());
-    }
-    /**
-     * @return mixed
-     */
-    public function getTimeout()
-    {
-        return $this->timeout;
-    }
-    /**
-     * @param mixed $timeout
-     */
-    public function setTimeout($timeout)
-    {
-        $this->timeout = $timeout;
-    }
-    /**
-     * @return string
-     */
-    public function getCharset()
-    {
-        return $this->charset;
-    }
-    public function setCharset($charset)
-    {
-        $this->charset = $charset;
-        return $this;
-    }
-    /**
-     * @return string
-     */
-    public function getCollate()
-    {
-        return $this->collate;
-    }
-    public function setCollate($collate)
-    {
-        $this->collate = $collate;
-        return $this;
-    }
-    /**
-     * @return string
-     */
-    public function getDatabase()
-    {
-        return $this->database;
-    }
-    public function setDatabase($database)
-    {
-        $this->database = $database;
-        return $this;
-    }
-    public function _isSqlsrv()
-    {
-        return $this->_driverTypeIsString() && 'sqlsrv' == strtolower($this->getDriverType());
-    }
-    public function getAttribute()
-    {
-        return $this->attribute;
-    }
-    protected function _displayError($e, $code = 0)
-    {
-        $sql = $this->_lastSql ? ' , ' . "\n" . 'with query : ' . $this->_lastSql : '';
-        $group = 'Database Group : [ ' . $this->group . ' ] , error : ';
-        if ($e instanceof Exception) {
-            $this->_errorMsg = $e->getMessage() . $sql;
-        } else {
-            $this->_errorMsg = $e . $sql;
-        }
-        if ($this->getDebug() || $this->_isInTransaction) {
-            if ($e instanceof Exception) {
-                throw new \Zls_Exception_Database(
-                    Z::toUtf8($group . $this->_errorMsg),
-                    500,
-                    'Zls_Exception_Database',
-                    $e->getFile(),
-                    $e->getLine()
-                );
-            } else {
-                throw new \Zls_Exception_Database(Z::toUtf8($group . $e . $sql), $code);
-            }
-        }
-    }
-    public function getDebug()
-    {
-        return $this->debug;
-    }
-    public function setDebug($debug)
-    {
-        $this->debug = $debug;
-        return $this;
-    }
-    /**
-     * @return Zls_PDO
-     */
-    public function pdoInstance()
-    {
-        if (!$this->_masterPdo) {
-            $this->_init();
-        }
-        return $this->_masterPdo;
-    }
-    public function commit()
-    {
-        if (!$this->_init()) {
-            return false;
-        }
-        $this->_masterPdo->commit();
-        $this->_isInTransaction = $this->_masterPdo->isInTransaction();
-    }
-    public function rollback()
-    {
-        if (!$this->_init()) {
-            return false;
-        }
-        $this->_masterPdo->rollback();
-    }
-    public function cache($cacheTime, $cacheKey = '')
-    {
-        $this->_cacheTime = (int)$cacheTime;
-        $this->_cacheKey = $cacheKey;
-        return $this;
-    }
-    /**
-     * @return string
-     */
-    public function reset()
-    {
-        if ($this->arFrom) {
-            $sql = $this->getSql();
-            $values = $this->getSqlValues();
-            if ($resetSql = $this->resetSql()) {
-                $resetSql($sql, $values, $this->vsprintfSql($sql, $values));
-            }
-            $preview = $this->vsprintfSql($sql, $values);
-        } else {
-            $preview = '';
-        }
-        return Z::tap($preview, function () {
-            $this->_cacheKey = '';
-            $this->_cacheTime = null;
-            $this->_reset();
-        });
-    }
-    abstract public function getSql();
-    public function getSqlValues()
-    {
-        return $this->_getValues();
-    }
-    protected function _reset()
-    {
-    }
-    abstract protected function _getValues();
-    public function resetSql()
-    {
-        return $this->resetSql;
-    }
-    private function vsprintfSql($sql, $values)
-    {
-        return !!$values ? vsprintf(str_replace(['%', '?'], ['%%', '%s'], $sql), z::arrayMap($values, function ($e) {
-            return is_string($e) ? "'{$e}'" : $e;
-        })) : $sql;
-    }
-    /**
-     * 执行一个sql语句，写入型的返回bool或者影响的行数（insert,delete,replace,update），搜索型的返回结果集
-     *
-     * @param string $sql    sql语句
-     * @param array  $values 参数
-     * @param bool   $reconnection
-     *
-     * @return array|bool|int|Zls_Database_Resultset
-     */
-    public function execute($sql = '', array $values = [], $reconnection = true)
-    {
-        $cfg = Zls::getConfig();
-        $middleware = $cfg->getDatabaseMiddleware();
-        $pip = new Zls_Pipeline();
-        $trace = [];
-        if ($this->slowQueryDebug || $this->indexDebug) {
-            $trace = Z::tap(debug_backtrace(), function (&$trace) {
-                $_trace = ('Zls_Dao' == Z::arrayGet($trace, '1.class')) ? $trace[1] : $trace[0];
-                $trace = [
-                    'file' => $_trace['file'],
-                    'line' => $_trace['line'],
-                    'class' => $_trace['class'],
-                    'function' => $_trace['function'],
-                ];
-            });
-        }
-        if (!$this->_init()) {
-            return false;
-        }
-        $startTime = Z::microtime();
-        $sql = $sql ? $this->_checkPrefixIdentifier($sql) : $this->getSql();
-        $values = !empty($values) ? $values : $this->_getValues();
-        $resetSql = $this->resetSql();
-        if (is_callable($resetSql)) {
-            $middleware[] = function ($request, callable $next) use ($resetSql) {
-                list($sql, $values, $pdo) = $request;
-                $resetSql($sql, $values, $this->vsprintfSql($sql, $values));
-                return $next([$sql, $values, $pdo]);
-            };
-        }
-        $pipRun = function (&$pdo) use ($pip, $middleware, &$sql, &$values) {
-            $pip->send([$sql, $values, $pdo])->then($middleware, function ($request) use (&$sql, &$values, &$pdo) {
-                list($sql, $values, $pdo) = $request;
-            });
-            $this->_lastSql = $this->vsprintfSql($sql, $values);
-            $this->_lastPdoInstance = &$pdo;
-        };
-        $cacheHandle = null;
-        if (is_numeric($this->_cacheTime)) {
-            $cacheHandle = Z::config()->getCacheHandle();
-            Z::throwIf(empty($cacheHandle), 500, 'no cache handle found , please set cache handle', 'ERROR');
-            $key = empty($this->_cacheKey) ? md5($sql . var_export($values, true)) : $this->_cacheKey;
-            if ($this->_cacheTime > 0) {
-                $return = $cacheHandle->get($key);
-                if (!is_null($return)) {
-                    $this->_cacheKey = '';
-                    $this->_cacheTime = null;
-                    $this->_reset();
-                    return $return;
-                }
-            } else {
-                $cacheHandle->delete($key);
-            }
-        }
-        $isWriteType = $this->_isWriteType($sql);
-        $isWritetRowsType = $this->_isWriteRowsType($sql);
-        $isWriteInsertType = $this->_isWriteInsertType($sql);
-        $return = false;
-        try {
-            $pdo = &$this->_masterPdo;
-            if ($this->_isInTransaction) {
-                $pipRun($pdo);
-                if ($sth = $pdo->prepare($sql)) {
-                    if ($isWriteType) {
-                        $status = $sth->execute($values);
-                        $return = $isWritetRowsType ? $sth->rowCount() : $status;
-                        $this->_lastInsertId = $isWriteInsertType ? $pdo->lastInsertId() : 0;
-                    } else {
-                        $return = $sth->execute($values) ? $sth->fetchAll(PDO::FETCH_ASSOC) : [];
-                        $return = new \Zls_Database_Resultset($return);
-                    }
-                } else {
-                    $errorInfo = $pdo->errorInfo();
-                    $this->_displayError($errorInfo[2], $errorInfo[1]);
-                }
-            } else {
-                if (!$this->isLocked()) {
-                    if ($isWriteType) {
-                        $pdo = &$this->connectionMasters[array_rand($this->connectionMasters)];
-                    } else {
-                        $pdo = &$this->connectionSlaves[array_rand($this->connectionSlaves)];
-                    }
-                }
-                $pipRun($pdo);
-                if ($sth = @$pdo->prepare($sql)) {
-                    if ($isWriteType) {
-                        $status = $sth->execute($values);
-                        $return = $isWritetRowsType ? $sth->rowCount() : $status;
-                        $this->_lastInsertId = $isWriteInsertType ? $pdo->lastInsertId() : 0;
-                    } else {
-                        $return = $sth->execute($values) ? $sth->fetchAll(PDO::FETCH_ASSOC) : [];
-                        $return = new \Zls_Database_Resultset($return);
-                    }
-                } else {
-                    $errorInfo = $pdo->errorInfo();
-                    $this->_displayError($errorInfo[2], $errorInfo[1]);
-                }
-            }
-            $usingTime = (Z::microtime() - $startTime) . '';
-            $explainRows = [];
-            if ($this->_isMysql() && ($this->slowQueryDebug || $this->indexDebug) && (($this->_isExplain56Type($sql) && $this->versionThan56) || ($this->_isExplainType($sql) && !$this->versionThan56))) {
-                reset($this->connectionMasters);
-                $sth = $this->connectionMasters[key($this->connectionMasters)]->prepare('EXPLAIN ' . $sql);
-                $sth->execute($values);
-                $explainRows = $sth->fetchAll(PDO::FETCH_ASSOC);
-            }
-            if ($this->slowQueryDebug && ($usingTime >= $this->getSlowQueryTime())) {
-                if ($this->slowQueryHandle instanceof Zls_Database_SlowQuery_Handle) {
-                    $this->slowQueryHandle->handle($sql, var_export($values, true), var_export($explainRows, true), $usingTime, $trace);
-                }
-            }
-            if ($this->indexDebug && $this->indexHandle instanceof Zls_Database_Index_Handle) {
-                $badIndex = false;
-                if ($this->_isMysql()) {
-                    $order = [
-                        'system' => 1,
-                        'const' => 2,
-                        'eq_ref' => 3,
-                        'ref' => 4,
-                        'fulltext' => 5,
-                        'ref_or_null' => 6,
-                        'index_merge' => 7,
-                        'unique_subquery' => 8,
-                        'index_subquery' => 9,
-                        'range' => 10,
-                        'index' => 11,
-                        'all' => 12,
-                    ];
-                    foreach ($explainRows as $row) {
-                        if (
-                            Z::arrayKeyExists(
-                                strtolower($row['type']),
-                                $order
-                            )
-                            && Z::arrayKeyExists(strtolower($this->getMinIndexType()), $order)
-                        ) {
-                            $key = $order[strtolower($row['type'])];
-                            $minKey = $order[strtolower($this->getMinIndexType())];
-                            if ($key > $minKey) {
-                                if (false === stripos($row['Extra'], 'optimized')) {
-                                    $badIndex = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                if ($badIndex) {
-                    $this->indexHandle->handle($sql, var_export($values, true), var_export($explainRows, true), $usingTime, $trace);
-                }
-            }
-            if (!is_null($this->_cacheTime) && (bool)$return->row()) {
-                $key = empty($this->_cacheKey) ? md5($sql . var_export($values, true)) : $this->_cacheKey;
-                if ($this->_cacheTime > 0) {
-                    $cacheHandle->set($key, $return, $this->_cacheTime);
-                } else {
-                    $cacheHandle->delete($key);
-                }
-            }
-            $this->_cacheKey = '';
-            $this->_cacheTime = null;
-            $this->_reset();
-        } catch (\Exception $e) {
-            if ($reconnection && stristr($e->getMessage(), 'server has gone away')) {
-                $this->close();
-                return $this->execute($sql, $values, false);
-            } else {
-                $this->_reset();
-                $this->_displayError($e);
-            }
-        }
-        if ($this->_isMysql() && $this->getTrace() && true == Z::config()->getTraceStatus('mysql')) {
-            if (preg_match('/SELECT /ims', $sql)) {
-                try {
-                    $trace['runtime'] = (Z::microtime() - $startTime) . 'ms';
-                    $trace['time'] = date('Y-m-d H:i:s');
-                    $sth = @$pdo->prepare('EXPLAIN ' . $sql);
-                    $sql = str_replace("\n", ' ', $sql);
-                    $arr = $sth->execute($values) ? $sth->fetch(PDO::FETCH_ASSOC) : [];
-                    $this->_traceRes = $trace + $arr + ['Values' => join(',', $values), 'SQL' => $sql];
-                    $this->trace();
-                } catch (\Exception $e) {
-                }
-            }
-        }
-        return $return;
-    }
-    private function _checkPrefixIdentifier($str)
-    {
-        $prefix = $this->getTablePrefix();
-        $identifier = $this->getTablePrefixSqlIdentifier();
-        return $identifier ? str_replace($identifier, $prefix, $str) : $str;
-    }
-    public function getTablePrefix()
-    {
-        return $this->tablePrefix;
-    }
-    public function setTablePrefix($tablePrefix)
-    {
-        $this->tablePrefix = $tablePrefix;
-        return $this;
-    }
-    public function getTablePrefixSqlIdentifier()
-    {
-        return $this->tablePrefixSqlIdentifier;
-    }
-    public function setTablePrefixSqlIdentifier($tablePrefixSqlIdentifier)
-    {
-        $this->tablePrefixSqlIdentifier = $tablePrefixSqlIdentifier;
-        return $this;
-    }
-    private function _isWriteType($sql)
-    {
-        if (!preg_match(
-            '/^\s*"?(SET|INSERT|UPDATE|DELETE|REPLACE|CREATE|DROP|TRUNCATE|LOAD DATA|COPY|ALTER|GRANT|REVOKE|LOCK|UNLOCK)\s+/i',
-            $sql
-        )) {
-            return false;
-        }
-        return true;
-    }
-    private function _isWriteRowsType($sql)
-    {
-        if (!preg_match('/^\s*"?(INSERT|UPDATE|DELETE|REPLACE)\s+/i', $sql)) {
-            return false;
-        }
-        return true;
-    }
-    private function _isWriteInsertType($sql)
-    {
-        if (!preg_match('/^\s*"?(INSERT|REPLACE)\s+/i', $sql)) {
-            return false;
-        }
-        return true;
-    }
-    /**
-     * 数据库连接是否处于锁定状态
-     * @return bool
-     */
-    public function isLocked()
-    {
-        return $this->_locked;
-    }
-    private function _isExplain56Type($sql)
-    {
-        if (!preg_match('/^\s*"?(SELECT|INSERT|UPDATE|DELETE|REPLACE)\s+/i', $sql)) {
-            return false;
-        }
-        return true;
-    }
-    private function _isExplainType($sql)
-    {
-        if (!preg_match('/^\s*"?(SELECT)\s+/i', $sql)) {
-            return false;
-        }
-        return true;
-    }
-    public function getSlowQueryTime()
-    {
-        return $this->slowQueryTime;
-    }
-    public function setSlowQueryTime($slowQueryTime)
-    {
-        $this->slowQueryTime = $slowQueryTime;
-        return $this;
-    }
-    public function getMinIndexType()
-    {
-        return $this->minIndexType;
-    }
-    public function setMinIndexType($minIndexType)
-    {
-        $this->minIndexType = $minIndexType;
-        return $this;
-    }
-    public function close()
-    {
-        $this->_masterPdo = null;
-        $this->_lastPdoInstance = null;
-        $this->connectionMasters = [];
-        $this->connectionSlaves = [];
-        return $this;
-    }
-    public function getTrace()
-    {
-        return $this->trace;
-    }
-    public function setTrace($trace)
-    {
-        $this->trace = $trace;
-        return $this;
-    }
-    public function trace()
-    {
-        if ((bool)$this->_traceRes) {
-            Z::log(null, false)->mysql($this->_traceRes, $this->getDriverType());
-        }
-    }
-}
 /**
  * Class Zls_Controller.
  * @method void|null|string|array before($method, $controller, $args, $methodFull, $class)
@@ -5663,7 +5643,7 @@ class Zls_Route
  * @method Zls_Config setIsRewrite(boolean $isRewrite)
  * @method Zls_Config setDefaultController(string $defaultController)
  * @method Zls_Config setDefaultMethod($e)
- * @method Zls_Config setMethodPrefix($e)
+ * @method Zls_Config setMethodPrefix($e) 设置控制器方法前缀
  * @method Zls_Config setMethodUriSubfix($e) 设置URL后缀
  * @method Zls_Config setMethodParametersDelimiter($e)
  * @method Zls_Config setExceptionHandle($e)
@@ -5685,7 +5665,6 @@ class Zls_Route
  * @method string getCookiePrefix()
  * @method array  getHmvcModules()
  * @method string getTaskDirName()
- * @method string getPrimaryAppDir()
  * @method string getMethodPrefix()
  * @method string getBusinessDirName()
  * @method string getDaoDirName()
@@ -5699,7 +5678,6 @@ class Zls_Route
  * @method string getMethodUriSubfix()
  * @method string getConfigDirName()
  * @method bool   getExceptionControl()
- * @method Zls_Maintain_Handle_Default  getMaintainModeHandle()
  * @method Zls_Session getSessionHandle()
  * @method array       getCommands()
  * @method bool        getIsRewrite()
@@ -5713,7 +5691,7 @@ class Zls_Config
     public $runState = true;
     private $context;
     private $appDir = '';
-    private $primaryAppDir = '';
+    private $primaryAppDir = 'ZlsPHP';
     private $indexDir = '';
     private $commands = [];
     private $classesDirName = 'classes';
@@ -5731,7 +5709,7 @@ class Zls_Config
     private $taskDirName = 'Task';
     private $defaultController = 'Index';
     private $defaultMethod = 'index';
-    private $methodPrefix = 'z_';
+    private $methodPrefix = 'z';
     private $methodUriSubfix = '.go';
     private $methodParametersDelimiter = '-'; // todo 后期移除
     private $logsSubDirNameFormat = 'Y-m-d/H';
@@ -6071,21 +6049,22 @@ class Zls_Config
             $cacheConfigArr = Z::config($cacheConfig, false);
         } elseif (is_array($cacheConfig)) {
             $cacheConfigArr = $cacheConfig;
+        } else {
+            return $this;
         }
         $arr = [
             'cacheHandles' => [],
             'cacheConfig' => $cacheConfigArr,
         ];
         Cfg::setArray($arr);
-        // $cacheConfigArr = Z::getGlobalData(ZLS_PREFIX . 'cacheConfig', []);
-        //
-        // $this->cacheHandles
-        // $this->cacheConfig
         return $this;
     }
     public function getStorageDirPath()
     {
-        return empty($this->storageDirPath) ? $this->getPrimaryAppDir() . 'storage/' : $this->storageDirPath;
+        if (empty($this->storageDirPath)) {
+            $this->setStorageDirPath(defined('ZLS_STORAGE_PATH') ? Z::realPath(ZLS_STORAGE_PATH, true) : $this->getPrimaryAppDir() . 'storage/');
+        }
+        return $this->storageDirPath;
     }
     public function setStorageDirPath($storageDirPath)
     {
@@ -6152,6 +6131,13 @@ class Zls_Config
     public function setMaintainModeHandle(Zls_Maintain_Handle $maintainModeHandle)
     {
         $this->maintainModeHandle = $maintainModeHandle;
+        return $this;
+    }
+    public function getMaintainModeHandle()
+    {
+        if (!$this->maintainModeHandle) {
+            $this->setMaintainModeHandle(new \Zls_Maintain_Handle_Default());
+        }
         return $this;
     }
     public function getIsMaintainMode()
@@ -6281,10 +6267,12 @@ class Zls_Config
     }
     public function setPrimaryAppDir($primaryAppDir = '')
     {
-        if (empty($this->primaryAppDir)) {
-            $this->primaryAppDir = Z::realPath($primaryAppDir ?: $this->appDir, true);
-        }
+        $this->primaryAppDir = $primaryAppDir;
         return $this;
+    }
+    public function getPrimaryAppDir()
+    {
+        return Z::realPath($this->primaryAppDir ?: $this->appDir, true);
     }
     /**
      * @param $method
