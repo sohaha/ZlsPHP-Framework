@@ -1,5 +1,5 @@
 <?php
-define('IN_ZLS', '2.7.2');
+define('IN_ZLS', '2.7.3');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
 defined('ZLS_PHAR_PATH') || define('ZLS_PHAR_PATH', '');
@@ -2450,11 +2450,11 @@ class Zls
         $content = ob_get_clean();
         $hs = Cfg::get('setHeader', []);
         foreach ($hs as $c) {
-            header(...$c);
+            @header(...$c);
         }
         $cs = Cfg::get('setCookie', []);
         foreach ($cs as $c) {
-            setcookie(...$c);
+            @setcookie(...$c);
         }
         if ($content !== '') {
             echo $content;
@@ -2485,12 +2485,12 @@ class Zls
         @ini_set('session.use_trans_sid', 0);
         @ini_set('session.hash_function', 1);
         @ini_set('session.hash_bits_per_character', 5);
-        session_cache_limiter('nocache');
-        session_set_cookie_params($sessionConfig['lifetime'], $sessionConfig['cookie_path'], preg_match('/^[^.]+$/', Z::server('HTTP_HOST')) ? '' : $sessionConfig['cookie_domain']);
+        @session_cache_limiter('nocache');
+        @session_set_cookie_params($sessionConfig['lifetime'], $sessionConfig['cookie_path'], preg_match('/^[^.]+$/', Z::server('HTTP_HOST')) ? '' : $sessionConfig['cookie_domain']);
         if (!empty($sessionConfig['session_save_path'])) {
             session_save_path($sessionConfig['session_save_path']);
         }
-        session_name($sessionConfig['session_name']);
+        @session_name($sessionConfig['session_name']);
         register_shutdown_function('session_write_close');
         if ($haveSessionHandle) {
             $sessionHandle->init(session_id());
@@ -5720,7 +5720,7 @@ class Zls_Config
     private $isRewrite = true;
     private $request;
     private $showError;
-    private $traceStatus = false;
+    private $traceStatus = true;
     private $routersContainer = [];
     private $packageMasterContainer = [];
     private $packageContainer = [];
