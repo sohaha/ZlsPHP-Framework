@@ -1,5 +1,5 @@
 <?php
-define('IN_ZLS', '2.7.3');
+define('IN_ZLS', '2.7.4');
 define('ZLS_CORE_PATH', __FILE__);
 defined('ZLS_PREFIX') || define('ZLS_PREFIX', '__Z__');
 defined('ZLS_PHAR_PATH') || define('ZLS_PHAR_PATH', '');
@@ -994,12 +994,8 @@ class Z
             Zls::checkHmvc($hmvcModuleName);
         }
         if (is_string($controller)) {
-            $prefix = 'Controller';
-            $class = self::strBeginsWith($controller, $prefix) || self::strBeginsWith($controller, '\\') ? $controller : '\\' . Zls::getConfig()->getControllerDirName() . '\\' . $controller;
-            if ($onCompatible && !class_exists($class)) {
-                $class = $prefix . '_' . self::strSnake2Camel(substr($class, strlen($prefix) + 1));
-            }
-            self::throwIf(!class_exists($class), 404, 'Controller [ ' . $class . ' ] not found');
+            $class = z::strBeginsWith($controller, 'Controller') || z::strBeginsWith($controller, '\\') ? $controller : Zls::getConfig()->getControllerDirName() . '_' . $controller;
+            Z::throwIf(!Z::classIsExists($class), 404, 'Controller [ ' . $class . ' ] not found');
             $controllerObject = self::factory($class, true);
             $originalClass = str_replace('_', '\\', $class);
         } else {
@@ -1062,12 +1058,50 @@ class Z
             return $controllerObject;
         }
     }
-    /**
-     * @return Zls_View
-     */
-    public static function view()
+    private static function classIsExists($class)
     {
-        return self::factory('Zls_View');
+        if (class_exists($class, false)) {
+            return true;
+        }
+        $classNamePath = str_replace('_', '/', $class);
+        foreach (self::config()->getPackages() as $path) {
+            if (file_exists(self::realPath($path . self::config()->getClassesDirName() . '/' . $classNamePath . '.php'))) {
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * 将特定字符串转化为按驼峰式
+     */
+    public static function strSnake2Camel($str, $ucfirst = true, $delimiter = '_')
+    {
+        $to = function ($str) use ($ucfirst, $delimiter) {
+            $str = ucwords(str_replace($delimiter, ' ', $str));
+            $str = str_replace(' ', '', lcfirst($str));
+            return $ucfirst ? ucfirst($str) : $str;
+        };
+        return is_array($str) ? (function () use ($to, $str) {
+            $arr = [];
+            foreach ($str as $key => $v) {
+                if (is_array($v)) {
+                    $arr[$to($key)] = self::strSnake2Camel($v);
+                } else {
+                    $arr[$to($key)] = $v;
+                }
+            }
+            return $arr;
+        })() : $to($str);
+    }
+    public static function json()
+    {
+        $args = func_get_args();
+        $handle = self::config()->getOutputJsonRender();
+        if (is_callable($handle)) {
+            return call_user_func_array($handle, $args);
+        } else {
+            return '';
+        }
     }
     /**
      * @param       $daoName
@@ -1102,28 +1136,6 @@ class Z
         }
         self::throwIf(!($object instanceof Zls_Bean), 500, '[ ' . $name . ' ] not a valid Zls_Bean', 'ERROR');
         return $object;
-    }
-    /**
-     * 将特定字符串转化为按驼峰式
-     */
-    public static function strSnake2Camel($str, $ucfirst = true, $delimiter = '_')
-    {
-        $to = function ($str) use ($ucfirst, $delimiter) {
-            $str = ucwords(str_replace($delimiter, ' ', $str));
-            $str = str_replace(' ', '', lcfirst($str));
-            return $ucfirst ? ucfirst($str) : $str;
-        };
-        return is_array($str) ? (function () use ($to, $str) {
-            $arr = [];
-            foreach ($str as $key => $v) {
-                if (is_array($v)) {
-                    $arr[$to($key)] = self::strSnake2Camel($v);
-                } else {
-                    $arr[$to($key)] = $v;
-                }
-            }
-            return $arr;
-        })() : $to($str);
     }
     /**
      * 模型
@@ -2109,16 +2121,6 @@ class Z
         }
         return $result;
     }
-    public static function json()
-    {
-        $args = func_get_args();
-        $handle = self::config()->getOutputJsonRender();
-        if (is_callable($handle)) {
-            return call_user_func_array($handle, $args);
-        } else {
-            return '';
-        }
-    }
     /**
      * 重定向
      */
@@ -2134,6 +2136,13 @@ class Z
             }
         }
         self::end($msg);
+    }
+    /**
+     * @return Zls_View
+     */
+    public static function view()
+    {
+        return self::factory('Zls_View');
     }
     /**
      * exit/die代替
@@ -2565,7 +2574,7 @@ class Zls
             $_route->setHmvcModuleName(false);
         }
         if (empty($class)) {
-            $class = $config->getControllerDirName() . '\\' . $config->getDefaultController();
+            $class = $config->getControllerDirName() . '_' . $config->getDefaultController();
             $_route->setController($class);
         }
         if (empty($method)) {
@@ -3393,9 +3402,6 @@ abstract class Zls_Database
     {
         return $this->_getValues();
     }
-    protected function _reset()
-    {
-    }
     abstract protected function _getValues();
     public function resetSql()
     {
@@ -3406,6 +3412,9 @@ abstract class Zls_Database
         return !!$values ? vsprintf(str_replace(['%', '?'], ['%%', '%s'], $sql), z::arrayMap($values, function ($e) {
             return is_string($e) ? "'{$e}'" : $e;
         })) : $sql;
+    }
+    protected function _reset()
+    {
     }
     /**
      * 执行一个sql语句，写入型的返回bool或者影响的行数（insert,delete,replace,update），搜索型的返回结果集
@@ -4949,7 +4958,7 @@ class Zls_Router_PathInfo extends Zls_Router
                 }
             }
         }
-        $controller = '\\' . $config->getControllerDirName() . '\\' . $controller;
+        $controller = $config->getControllerDirName() . '_' . $controller;
         $methodAndParameters = explode($config->getMethodParametersDelimiter(), $method);
         $method = current($methodAndParameters);
         array_shift($methodAndParameters);
@@ -6071,6 +6080,15 @@ class Zls_Config
         $this->storageDirPath = Z::realPath($storageDirPath, true);
         return $this;
     }
+    public function getPrimaryAppDir()
+    {
+        return Z::realPath($this->primaryAppDir ?: $this->appDir, true);
+    }
+    public function setPrimaryAppDir($primaryAppDir = '')
+    {
+        $this->primaryAppDir = $primaryAppDir;
+        return $this;
+    }
     /**
      * 设置session托管
      *
@@ -6128,16 +6146,16 @@ class Zls_Config
         $this->databseConfig = is_array($databseConfig) ? $databseConfig : Z::config($databseConfig);
         return $this;
     }
-    public function setMaintainModeHandle(Zls_Maintain_Handle $maintainModeHandle)
-    {
-        $this->maintainModeHandle = $maintainModeHandle;
-        return $this;
-    }
     public function getMaintainModeHandle()
     {
         if (!$this->maintainModeHandle) {
             $this->setMaintainModeHandle(new \Zls_Maintain_Handle_Default());
         }
+        return $this;
+    }
+    public function setMaintainModeHandle(\Zls_Maintain_Handle $maintainModeHandle)
+    {
+        $this->maintainModeHandle = $maintainModeHandle;
         return $this;
     }
     public function getIsMaintainMode()
@@ -6264,15 +6282,6 @@ class Zls_Config
         $this->appDir = $appDir;
         $this->setPrimaryAppDir($appDir);
         return $this;
-    }
-    public function setPrimaryAppDir($primaryAppDir = '')
-    {
-        $this->primaryAppDir = $primaryAppDir;
-        return $this;
-    }
-    public function getPrimaryAppDir()
-    {
-        return Z::realPath($this->primaryAppDir ?: $this->appDir, true);
     }
     /**
      * @param $method
